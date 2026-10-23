@@ -1,0 +1,14 @@
+{
+  "name": "ph1world-plugins",
+  "description": "Claude Code plugins for Ph1world Design and Construction",
+  "owner": {
+    "name": "Ph1world Design and Construction"
+  },
+  "plugins": [
+    {
+      "name": "ph1-pwa-kit",
+      "source": "./plugins/ph1-pwa-kit",
+      "description": "PWA development team: frontend and backend developers, QA, code and UI reviewers, plus the /new-feature workflow"
+    }
+  ]
+}
