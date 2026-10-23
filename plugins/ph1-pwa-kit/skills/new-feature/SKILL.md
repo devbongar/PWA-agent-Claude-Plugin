@@ -67,3 +67,7 @@ Finish with a short summary:
 - Anything left open or needing my decision
 
 Do not commit or push unless I ask.
+
+## Ship gate (enforced)
+
+Using this workflow turns on the ship gate for the session. `git commit`, `git push`, `git merge` and `gh pr create/merge` are **blocked** until code-reviewer has reviewed the feature and qa-engineer has tested the latest code changes. This includes small follow-up changes from my live feedback: after any round of changes, run review and QA before shipping. If a command is blocked, run the missing agents. Don't try to get around the gate, and never skip it on your own; only I can, by typing `/ship-gate skip`.

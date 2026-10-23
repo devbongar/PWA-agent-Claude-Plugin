@@ -16,6 +16,8 @@ A development team for building PWAs (web apps with mobile versions) with Claude
 
 Command: `/ph1-pwa-kit:new-feature <describe the feature>` - plan (waits for approval), build frontend and backend in parallel, review, fix, QA, summary.
 
+**Ship gate:** once `/ph1-pwa-kit:new-feature` runs in a session, commits, pushes, merges and PRs are blocked until `code-reviewer` has reviewed the feature and `qa-engineer` has tested the latest code changes. `/ship-gate` shows the status; only you can type `/ship-gate skip` (until the next code change) or `/ship-gate off`.
+
 ### Bundled design skills
 
 | Skill | Used by | When |
@@ -34,7 +36,7 @@ If the **Playwright** plugin is installed, `ui-reviewer` takes real screenshots 
 
 ## agent-office
 
-A live pixel-art office pane. Each agent walks from the lounge to its desk when it starts working, shows what it's doing in a speech bubble, and walks back when it's done. Reopen it with `/agent-office:office`. Needs Claude Code 2.1.299 or later.
+A live pixel-art office pane. Each agent walks from the lounge to its desk when it starts working, shows what it's doing in a speech bubble, and walks back when it's done. Reopen it with `/office`. Needs Claude Code 2.1.299 or later.
 
 One-click install in VS Code:
 
