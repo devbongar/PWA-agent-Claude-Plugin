@@ -9,6 +9,11 @@
       "name": "ph1-pwa-kit",
       "source": "./plugins/ph1-pwa-kit",
       "description": "PWA development team: frontend and backend developers, QA, code and UI reviewers, plus the /new-feature workflow"
+    },
+    {
+      "name": "agent-office",
+      "source": "./plugins/agent-office",
+      "description": "Live pixel-art office: watch your agents walk to their desks while they work"
     }
   ]
 }

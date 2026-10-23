@@ -32,6 +32,16 @@ If the same skills are also installed in your personal skills folder, both copie
 
 If the **Playwright** plugin is installed, `ui-reviewer` takes real screenshots at phone, tablet and desktop sizes, and `qa-engineer` clicks through features in a real browser. Without it, both agents still work from the code and automated tests.
 
+## agent-office
+
+A live pixel-art office pane. Each agent walks from the lounge to its desk when it starts working, shows what it's doing in a speech bubble, and walks back when it's done. Reopen it with `/agent-office:office`. Needs Claude Code 2.1.299 or later.
+
+One-click install in VS Code:
+
+```
+vscode://anthropic.claude-code/install-plugin?plugin=agent-office&marketplace=devbongar/PWA-agent-Claude-Plugin
+```
+
 ## Install
 
 ```bash
