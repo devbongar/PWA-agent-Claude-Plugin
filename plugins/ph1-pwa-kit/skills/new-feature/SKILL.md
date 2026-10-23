@@ -20,7 +20,16 @@ You are the project lead. Plan and coordinate; delegate the building, testing an
   - Backend work: endpoints, database changes
   - The **API contract**: each endpoint's method, path, request and response shape, and error cases
   - Files to create or change, and any open questions
-- **Stop and wait for my OK before writing code.**
+- **Ask for a test account for live browser testing.** In the same message as the plan, ask:
+  > For live browser testing with Playwright, is there a test account? If yes, put its login in `.env.test.local` at the project root as `E2E_EMAIL=...` and `E2E_PASSWORD=...` (plus `E2E_BASE_URL=...` if the app isn't on the usual local dev URL), and make sure that file is git-ignored. If not, reply "no test account" and live browser testing will be skipped.
+  - Never ask me to paste a password into the chat, and never print, log or commit the credentials. If I paste one anyway, put it in `.env.test.local` for me, add the file to `.gitignore`, and don't repeat it.
+  - Never use a real customer or admin account. If I offer one, say it should be a dedicated test account.
+- **Stop and wait for my OK on the plan (and my answer about the test account) before writing code.**
+
+**Live testing decision** (carry it through to steps 3 and 5):
+
+- **Test account provided**: check that `.env.test.local` has `E2E_EMAIL` and `E2E_PASSWORD` (check that they're set without printing them). Tell ui-reviewer and qa-engineer that live browser testing is **on** and that they read the login from `.env.test.local`.
+- **No test account, or no answer**: live browser testing is **off**. Tell ui-reviewer and qa-engineer not to use the Playwright browser tools or run end-to-end tests that need a login. Everything else (unit, API and server tests, edge cases, code review) still runs. List the skipped live checks as manual checks in the summary.
 
 ## 2. Build
 
@@ -30,7 +39,7 @@ You are the project lead. Plan and coordinate; delegate the building, testing an
 
 ## 3. Review
 
-Run **code-reviewer** and **ui-reviewer** in parallel on all changes from this feature (skip ui-reviewer if there are no UI changes). Combine their findings into one list ranked by priority, removing duplicates.
+Run **code-reviewer** and **ui-reviewer** in parallel on all changes from this feature (skip ui-reviewer if there are no UI changes). Tell ui-reviewer whether live browser testing is on or off. Combine their findings into one list ranked by priority, removing duplicates.
 
 ## 4. Fix
 
@@ -41,7 +50,7 @@ Run **code-reviewer** and **ui-reviewer** in parallel on all changes from this f
 ## 5. QA (mandatory)
 
 - **Always run qa-engineer.** Never skip this step, and never do QA yourself instead of calling the agent - even when the change looks small or you already ran some checks.
-- Give it the acceptance criteria and tell it about any known blockers (for example, no test login available).
+- Give it the acceptance criteria, whether live browser testing is on or off, and any other known blockers.
 - **A blocker on one kind of test is not a reason to skip QA.** If end-to-end browser tests are blocked (no credentials, no running app), qa-engineer still writes and runs everything else: unit tests for pure logic, API and server tests, and edge cases. Only the blocked part is skipped, and it is listed as manual checks.
 - Send bugs to the right developer agent to fix, then have qa-engineer re-test. Repeat until the acceptance criteria pass, or stop after two rounds and tell me what's still failing.
 - Do not commit, push or open a PR before QA has run, unless I explicitly say to.
@@ -53,7 +62,8 @@ Finish with a short summary:
 - What was built (files created/changed, endpoints, migrations to run, new environment variables)
 - Review findings and what was fixed
 - QA results: **confirm qa-engineer ran**, acceptance criteria pass/fail, tests written and their results
-- What QA could not cover and why (for example, "end-to-end login flow: no test credentials"), as a checklist of manual checks for me
+- Whether live browser testing ran (test account provided) or was skipped (no test account)
+- What QA could not cover and why (for example, "end-to-end login flow: no test account"), as a checklist of manual checks for me
 - Anything left open or needing my decision
 
 Do not commit or push unless I ask.

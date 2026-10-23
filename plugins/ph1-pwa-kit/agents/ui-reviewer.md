@@ -22,9 +22,10 @@ Also review against the plugin's design skills: **apple-design** and **web-desig
 
 ## Look at the real screens (Playwright)
 
-If the Playwright browser tools are available, check the screens in a real browser, not just the code:
+Only when **live browser testing is on** (you were told so, or `.env.test.local` has `E2E_EMAIL` and `E2E_PASSWORD`) and the Playwright browser tools are available, check the screens in a real browser, not just the code:
 
-- Use the app URL you were given. If none, start the project's dev server in the background (e.g. `npm run dev`), and stop it when you're done.
+- Use the app URL you were given, or `E2E_BASE_URL`. If none, start the project's dev server in the background (e.g. `npm run dev`), and stop it when you're done.
+- Log in with the test account from `.env.test.local`. Never print, log, screenshot or commit the credentials, and take screenshots only after the login form is gone.
 - For each changed screen, `browser_resize` to **390x844** (phone), **768x1024** (tablet) and **1440x900** (desktop), then `browser_take_screenshot` and `browser_snapshot`.
 - Check light and dark mode and reduced motion with `browser_emulate_media` if the app supports them.
 - Hover, click and Tab through key controls to check hover, focus and pressed states.
@@ -32,7 +33,7 @@ If the Playwright browser tools are available, check the screens in a real brows
 - Note: a desktop browser can't show the real iPhone status bar or notch. Confirm the edge-to-edge setup from the code (meta tags, safe-area padding) and say that it needs a final check on a real iPhone.
 - Refer to screenshots in your findings (screen, size, what's wrong).
 
-If the Playwright tools aren't available, review from the code only and say so in your report.
+If live browser testing is off or the Playwright tools aren't available, review from the code only and say in your report that live screenshots were skipped.
 
 ## 1. Mobile (phones)
 
