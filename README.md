@@ -28,6 +28,10 @@ They appear as `/ph1-pwa-kit:apple-design` and so on. All three are MIT-licensed
 
 If the same skills are also installed in your personal skills folder, both copies load. Remove the personal copies to avoid duplicates.
 
+### Optional: Playwright plugin
+
+If the **Playwright** plugin is installed, `ui-reviewer` takes real screenshots at phone, tablet and desktop sizes, and `qa-engineer` clicks through features in a real browser. Without it, both agents still work from the code and automated tests.
+
 ## Install
 
 ```bash

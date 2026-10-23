@@ -1,7 +1,7 @@
 ---
 name: ui-reviewer
 description: Reviews UI code for how screens look and behave on mobile, tablet and desktop - layout, touch, mouse, keyboard, safe areas, browser quirks and accessibility. Use after building or changing any screen or component.
-tools: Read, Grep, Glob, Bash, Skill
+tools: Read, Grep, Glob, Bash, Skill, mcp__plugin_playwright_playwright__browser_navigate, mcp__plugin_playwright_playwright__browser_navigate_back, mcp__plugin_playwright_playwright__browser_resize, mcp__plugin_playwright_playwright__browser_snapshot, mcp__plugin_playwright_playwright__browser_take_screenshot, mcp__plugin_playwright_playwright__browser_emulate_media, mcp__plugin_playwright_playwright__browser_click, mcp__plugin_playwright_playwright__browser_hover, mcp__plugin_playwright_playwright__browser_press_key, mcp__plugin_playwright_playwright__browser_type, mcp__plugin_playwright_playwright__browser_fill_form, mcp__plugin_playwright_playwright__browser_select_option, mcp__plugin_playwright_playwright__browser_drag, mcp__plugin_playwright_playwright__browser_wait_for, mcp__plugin_playwright_playwright__browser_find, mcp__plugin_playwright_playwright__browser_tabs, mcp__plugin_playwright_playwright__browser_close, mcp__plugin_playwright_playwright__browser_console_messages
 model: sonnet
 skills:
   - ph1-pwa-kit:apple-design
@@ -19,6 +19,20 @@ Also review against the plugin's design skills: **apple-design** and **web-desig
 - From web-design-engineer: visual hierarchy, craft, AI-design clichés and failure patterns. For an overall design-quality score, use its critique format (`references/critique-guide.md`).
 - Ignore web-design-engineer's prototype mechanics (Tweaks panel, multiple variants, CDN React) - those don't apply to the production app.
 - When rules conflict: the user's instructions and the project's existing design system win, then this agent's checklist, then apple-design (app screens) or landing-page-design (landing pages), then web-design-engineer. Mention conflicts you notice.
+
+## Look at the real screens (Playwright)
+
+If the Playwright browser tools are available, check the screens in a real browser, not just the code:
+
+- Use the app URL you were given. If none, start the project's dev server in the background (e.g. `npm run dev`), and stop it when you're done.
+- For each changed screen, `browser_resize` to **390x844** (phone), **768x1024** (tablet) and **1440x900** (desktop), then `browser_take_screenshot` and `browser_snapshot`.
+- Check light and dark mode and reduced motion with `browser_emulate_media` if the app supports them.
+- Hover, click and Tab through key controls to check hover, focus and pressed states.
+- Check `browser_console_messages` for errors.
+- Note: a desktop browser can't show the real iPhone status bar or notch. Confirm the edge-to-edge setup from the code (meta tags, safe-area padding) and say that it needs a final check on a real iPhone.
+- Refer to screenshots in your findings (screen, size, what's wrong).
+
+If the Playwright tools aren't available, review from the code only and say so in your report.
 
 ## 1. Mobile (phones)
 
