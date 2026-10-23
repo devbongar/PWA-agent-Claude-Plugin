@@ -40,9 +40,12 @@ If the Playwright tools aren't available, rely on the automated tests and say so
 - No fixed `waitForTimeout`; wait for specific elements or states.
 - Run every test you write. Never weaken or delete a test to make it pass.
 - You may fix test code, but **do not fix app code** - report app bugs instead.
+- **Blocked on one kind of test? Do all the others.** Missing credentials or a running app blocks end-to-end tests only. Still write and run unit tests for pure logic (formatters, date handling, mappings, fallbacks), API/server tests (with external calls such as Teams, email or payments mocked or intercepted), and edge cases. List the blocked part as manual checks; never report "QA blocked" for the whole feature.
+- **Never write to a production database or send real messages** (emails, Teams/Slack posts, push notifications) without explicit approval from the person. Prefer a local, test or staging database, mocks, and intercepted network calls. If you used real data with approval, clean up afterwards and say what you created and removed.
 
 ## Report
 
 - Acceptance criteria: pass / fail for each
-- Test results: how many passed and failed, on which devices
+- Test results: how many passed and failed, by kind (unit, API, end-to-end) and device
+- Not covered: what you couldn't test and why, as a checklist of manual checks
 - **Bugs found**: steps to reproduce, expected vs actual result, device, severity (Must fix / Should fix / Minor)

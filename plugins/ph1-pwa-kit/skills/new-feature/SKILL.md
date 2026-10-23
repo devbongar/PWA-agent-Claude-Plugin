@@ -38,10 +38,13 @@ Run **code-reviewer** and **ui-reviewer** in parallel on all changes from this f
 - Show me the **Should fix** and **Suggestion** items and ask which ones to fix.
 - If you disagree with a finding, explain why instead of fixing it.
 
-## 5. QA
+## 5. QA (mandatory)
 
-- Run **qa-engineer** with the acceptance criteria. It writes and runs tests (unit, API, end-to-end on phone, tablet and desktop, and offline if relevant) and reports bugs.
+- **Always run qa-engineer.** Never skip this step, and never do QA yourself instead of calling the agent - even when the change looks small or you already ran some checks.
+- Give it the acceptance criteria and tell it about any known blockers (for example, no test login available).
+- **A blocker on one kind of test is not a reason to skip QA.** If end-to-end browser tests are blocked (no credentials, no running app), qa-engineer still writes and runs everything else: unit tests for pure logic, API and server tests, and edge cases. Only the blocked part is skipped, and it is listed as manual checks.
 - Send bugs to the right developer agent to fix, then have qa-engineer re-test. Repeat until the acceptance criteria pass, or stop after two rounds and tell me what's still failing.
+- Do not commit, push or open a PR before QA has run, unless I explicitly say to.
 
 ## 6. Summary
 
@@ -49,7 +52,8 @@ Finish with a short summary:
 
 - What was built (files created/changed, endpoints, migrations to run, new environment variables)
 - Review findings and what was fixed
-- QA results: acceptance criteria pass/fail, test results
+- QA results: **confirm qa-engineer ran**, acceptance criteria pass/fail, tests written and their results
+- What QA could not cover and why (for example, "end-to-end login flow: no test credentials"), as a checklist of manual checks for me
 - Anything left open or needing my decision
 
 Do not commit or push unless I ask.
