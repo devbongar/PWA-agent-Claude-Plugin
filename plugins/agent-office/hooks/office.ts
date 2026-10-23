@@ -47,6 +47,7 @@ export function activityFor(tool: string): string {
     if (['click', 'hover', 'type', 'fill_form', 'press_key', 'select_option', 'drag', 'drop'].includes(a)) return 'clicking'
     return 'browser'
   }
+  if (/handback/i.test(t)) return 'reporting'
   switch (t) {
     case 'Read': return 'reading'
     case 'Edit': case 'Write': case 'MultiEdit': case 'NotebookEdit': return 'coding'
@@ -55,6 +56,7 @@ export function activityFor(tool: string): string {
     case 'Skill': return 'studying'
     case 'WebFetch': case 'WebSearch': return 'researching'
     case 'Agent': return 'delegating'
+    case 'SubagentHandback': return 'reporting'
     case 'TaskCreate': case 'TaskUpdate': return 'planning'
     default: return t.length > 12 ? t.slice(0, 11) + '…' : t
   }

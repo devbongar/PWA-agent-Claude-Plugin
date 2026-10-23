@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 const PANE = {
   plugin: 'agent-office',
@@ -16,7 +16,10 @@ const PANE = {
 
 // Hooks that stand for the engine beneath the plugin.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function engine(on: any) {
+function engine(on: any, status = 'running') {
+  on('agent.list', () => ({
+    value: [{ id: 'a1', description: '', type: 'x', status }],
+  }))
   on('command.register', () => ({ value: { command: 'office' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
@@ -24,7 +27,7 @@ function engine(on: any) {
   on('tool.call', () => ({ result: {} }))
   on('classic.SubagentStart', () => ({}))
   on('classic.SubagentStop', () => ({}))
-  on('turn.complete', () => ({}))
+  on('turn.complete', (_: unknown, e: { text: string }) => ({ text: e.text }))
 }
 
 test('an agent walks in, works, and walks back out', async ($, on) => {
@@ -98,5 +101,45 @@ test('an unknown agent type takes a hot desk', async ($, on) => {
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
   expect(String((await ui.find({ type: 'Svg' }))?.props.source)).toContain('>Explore<')
   expect((await ui.find({ type: 'Text', text: /Explore/ }))?.text).toContain('Explore code')
+  await ui.unmount()
+})
+
+const SPAWN = {
+  tool_use_id: 't1', provider: { plugin: 'engine', tier: 'core' }, parentModel: 'opus', background: false, fork: false,
+  prompt: 'Build it', description: 'Notifications backend', subagentType: 'ph1-pwa-kit:backend-developer',
+} as const
+
+test('a subagent turn.complete sends the agent home', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.agent.spawn(SPAWN)
+  await $.turn.complete({ answer: 'done', durationMs: 10, isAborted: false, turnId: 'x', agentId: 'a1', reason: 'end_turn', text: 'done' } as never)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  expect((await ui.find({ type: 'Text', text: /✓ Backend/ }))?.text).toContain('done in')
+  await ui.unmount()
+})
+
+test('the handback tool sends the agent home', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.agent.spawn(SPAWN)
+  await $.tool.call({ tool: 'SubagentHandback', agentId: 'a1' } as never)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  expect((await ui.find({ type: 'Text', text: /✓ Backend/ }))?.text).toContain('done in')
+  await ui.unmount()
+})
+
+test('an agent the engine reports completed is sent home by the backstop', async ($, on) => {
+  engine(on, 'completed')
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.agent.spawn(SPAWN)
+  await clock.advance(4500)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  expect((await ui.find({ type: 'Text', text: /✓ Backend/ }))?.text).toContain('done in')
+  expect(await ui.find({ type: 'Text', text: /● Backend/ })).toBeUndefined()
   await ui.unmount()
 })

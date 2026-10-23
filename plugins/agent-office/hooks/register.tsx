@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { LeadState, OfficeAgent } from '../types'
 import { activityFor, formatElapsed, officeSvg, roleFor, roleIndex } from './office'
@@ -13,10 +13,50 @@ const leadAtom = atom({ plugin: 'agent-office', key: 'lead' } as const, { at: 0 
 
 const MAX_KEPT = 30
 
+const ENDED = new Set(['completed', 'failed', 'killed'])
+const isHandback = (tool: string) => /handback/i.test(tool)
+
+type Engine = EngineInterface
+
+async function endAgent($: Engine, id: string): Promise<void> {
+  await update($, agentsAtom, list =>
+    list.some(a => a.id === id && a.endedAt === undefined)
+      ? list.map(a => (a.id === id && a.endedAt === undefined ? { ...a, endedAt: Date.now(), activity: 'done' } : a))
+      : list,
+  )
+}
+
+// Backstop: every few seconds, ask the engine which agents are still running, and send the rest home.
+async function reconcile($: Engine): Promise<void> {
+  const open = (await read($, agentsAtom)).filter(a => a.endedAt === undefined)
+  if (open.length === 0) return
+  const known = (await $.agent.list()).map(a => ({ id: a.id, status: String(a.status) }))
+  const now = Date.now()
+  const ids = new Set(
+    open
+      .filter(a => {
+        const k = known.find(x => x.id === a.id)
+        return k ? ENDED.has(k.status) : now - a.startedAt > 15000
+      })
+      .map(a => a.id),
+  )
+  if (ids.size === 0) return
+  await update($, agentsAtom, list => list.map(a => (ids.has(a.id) && a.endedAt === undefined ? { ...a, endedAt: now, activity: 'done' } : a)))
+}
+
+let ticker: Timer | undefined
+function ensureTicker($: Engine): void {
+  if (ticker) return
+  ticker = $.clock.every(4000, () => {
+    reconcile($).catch(() => undefined)
+  })
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'office', description: 'Show the agent office: watch your agents walk to their desks' })
     void $.ui.open({ id: PANE, title: TITLE })
+    ensureTicker($)
     return next(e)
   })
 
@@ -28,6 +68,7 @@ export const register: Register = on => {
   // An agent starts: it gets a record, and its character walks to its desk.
   on('agent.spawn', async ($, e, next) => {
     const result = await next(e)
+    ensureTicker($)
     const id = result.agentId
     if (id) {
       const rec: OfficeAgent = { id, type: e.subagentType, description: e.description, startedAt: Date.now() }
@@ -46,17 +87,17 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // An agent finishes: its character walks back to the lounge.
+  // An agent finishes: its character walks back to the lounge. Several signals can say so;
+  // whichever comes first wins and the rest change nothing.
   on('classic.SubagentStop', async ($, e, next) => {
-    await update($, agentsAtom, list =>
-      list.map(a => (a.id === e.agent_id && a.endedAt === undefined ? { ...a, endedAt: Date.now() } : a)),
-    )
+    await endAgent($, e.agent_id)
     return next(e)
   })
 
   // Each tool call becomes the speech bubble of whoever made it.
   on('tool.call', async ($, e, next) => {
-    const label = activityFor(String(e.tool))
+    const tool = String(e.tool)
+    const label = activityFor(tool)
     const agentId = e.agentId
     if (agentId) {
       const list = await read($, agentsAtom)
@@ -64,15 +105,20 @@ export const register: Register = on => {
       if (mine && mine.endedAt === undefined && mine.activity !== label) {
         await update($, agentsAtom, l => l.map(a => (a.id === agentId ? { ...a, activity: label } : a)))
       }
-    } else {
-      const lead = await read($, leadAtom)
-      if (lead.activity !== label) await update($, leadAtom, () => ({ activity: label, at: Date.now() }))
+      const ran = await next(e)
+      // Handing the report back is a subagent's last act.
+      if (isHandback(tool)) await endAgent($, agentId)
+      return ran
     }
+    const lead = await read($, leadAtom)
+    if (lead.activity !== label) await update($, leadAtom, () => ({ activity: label, at: Date.now() }))
     return next(e)
   })
 
+  // A subagent's run is one turn: its turn.complete (carrying its id) means it is done.
   on('turn.complete', async ($, e, next) => {
-    await update($, leadAtom, () => ({ activity: undefined, at: Date.now() }))
+    if (e.agentId) await endAgent($, e.agentId)
+    else await update($, leadAtom, () => ({ activity: undefined, at: Date.now() }))
     return next(e)
   })
 
