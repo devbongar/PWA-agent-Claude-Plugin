@@ -1,7 +1,0 @@
-{
-  "name": "agent-office",
-  "version": "0.2.2",
-  "description": "A live pixel-art office: each agent walks to its desk when it starts working and back to the lounge when it's done",
-  "author": { "name": "Ph1world Design and Construction" },
-  "types": "./types/index.d.ts"
-}

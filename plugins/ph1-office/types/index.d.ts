@@ -11,6 +11,6 @@ export type LeadState = { activity?: string; at: number }
 
 declare module 'claude-code' {
   interface PluginState {
-    'agent-office': { agents: Shaped<OfficeAgent[]>; lead: Shaped<LeadState> }
+    'ph1-office': { agents: Shaped<OfficeAgent[]>; lead: Shaped<LeadState> }
   }
 }

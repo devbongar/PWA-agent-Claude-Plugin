@@ -8,8 +8,8 @@ const PANE = 'office'
 const TITLE = 'Agent office'
 
 // Change a shape tag when the stored fields change: it declines what an older version stored.
-const agentsAtom = atom({ plugin: 'agent-office', key: 'agents' } as const, [] as OfficeAgent[], { shape: 'agents-1' })
-const leadAtom = atom({ plugin: 'agent-office', key: 'lead' } as const, { at: 0 } as LeadState, { shape: 'lead-1' })
+const agentsAtom = atom({ plugin: 'ph1-office', key: 'agents' } as const, [] as OfficeAgent[], { shape: 'agents-1' })
+const leadAtom = atom({ plugin: 'ph1-office', key: 'lead' } as const, { at: 0 } as LeadState, { shape: 'lead-1' })
 
 const MAX_KEPT = 30
 
@@ -54,15 +54,16 @@ function ensureTicker($: Engine): void {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'ph1-office', description: 'Show the agent office: watch your agents walk to their desks' })
     void $.ui.open({ id: PANE, title: TITLE })
     ensureTicker($)
     return next(e)
   })
 
-  on('command.run', { command: 'ph1-office' }, async $ => {
+  // /ph1-office:open reopens the pane.
+  on('skill.prompt', async ($, e, next) => {
+    if (!/(^|:)open$/.test(e.skill) || (e.pluginName !== undefined && e.pluginName !== 'ph1-office')) return next(e)
     await $.ui.open({ id: PANE, title: TITLE })
-    return { text: 'Agent office opened.' }
+    return { text: 'Tell the person in one short sentence that the Agent office pane is open. Do nothing else.' }
   })
 
   // An agent starts: it gets a record, and its character walks to its desk.

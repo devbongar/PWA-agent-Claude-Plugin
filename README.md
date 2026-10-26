@@ -16,7 +16,7 @@ A development team for building PWAs (web apps with mobile versions) with Claude
 
 Command: `/ph1-pwa-kit:new-feature <describe the feature>` - plan (waits for approval), build frontend and backend in parallel, review, fix, QA, summary.
 
-**Ship gate:** once `/ph1-pwa-kit:new-feature` runs in a session, commits, pushes, merges and PRs are blocked until `code-reviewer` has reviewed the feature and `qa-engineer` has tested the latest code changes. `/ph1-ship-gate` shows the status; only you can type `/ph1-ship-gate skip` (until the next code change) or `/ph1-ship-gate off`.
+**Ship gate:** once `/ph1-pwa-kit:new-feature` runs in a session, commits, pushes, merges and PRs are blocked until `code-reviewer` has reviewed the feature and `qa-engineer` has tested the latest code changes. `/ph1-pwa-kit:ship-gate` shows the status; only you can run `/ph1-pwa-kit:ship-gate skip` (until the next code change) or `/ph1-pwa-kit:ship-gate off`.
 
 ### Bundled design skills
 
@@ -34,14 +34,14 @@ If the same skills are also installed in your personal skills folder, both copie
 
 If the **Playwright** plugin is installed, `ui-reviewer` takes real screenshots at phone, tablet and desktop sizes, and `qa-engineer` clicks through features in a real browser. Without it, both agents still work from the code and automated tests.
 
-## agent-office
+## ph1-office
 
-A live pixel-art office pane. Each agent walks from the lounge to its desk when it starts working, shows what it's doing in a speech bubble, and walks back when it's done. Reopen it with `/ph1-office`. Needs Claude Code 2.1.299 or later.
+A live pixel-art office pane. Each agent walks from the lounge to its desk when it starts working, shows what it's doing in a speech bubble, and walks back when it's done. Reopen it with `/ph1-office:open`. Needs Claude Code 2.1.299 or later.
 
 One-click install in VS Code:
 
 ```
-vscode://anthropic.claude-code/install-plugin?plugin=agent-office&marketplace=devbongar/PWA-agent-Claude-Plugin
+vscode://anthropic.claude-code/install-plugin?plugin=ph1-office&marketplace=devbongar/PWA-agent-Claude-Plugin
 ```
 
 ## ph1-brain

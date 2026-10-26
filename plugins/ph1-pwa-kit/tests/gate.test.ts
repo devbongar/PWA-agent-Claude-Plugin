@@ -92,16 +92,16 @@ test('a fix after QA needs QA again, but QA writing tests does not', async ($, o
   expect(String((blocked as { deny?: string }).deny)).not.toContain('code-reviewer')
 })
 
-test('only the person can skip the gate', async ($, on) => {
+test('the person can skip the gate with /ph1-pwa-kit:ship-gate', async ($, on) => {
   engine(on)
   await startFeature($)
   await $.tool.call({ tool: 'Edit', file_path: '/a.ts', old_string: 'a', new_string: 'b' } as never)
 
-  const byModel = await $.command.run({ command: 'ph1-ship-gate', args: 'skip', origin: { kind: 'sdk' }, presentation: 'visible' } as never)
-  expect(String((byModel as { text?: string }).text)).toContain('only the person')
   expect(String(((await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)) as { deny?: string }).deny)).toContain('Ship gate')
 
-  await $.command.run({ command: 'ph1-ship-gate', args: 'skip', origin: { kind: 'composer' }, presentation: 'visible' } as never)
+  // The person types /ph1-pwa-kit:ship-gate skip (the skill the model can't invoke).
+  const shown = await $.skill.prompt({ skill: 'ph1-pwa-kit:ship-gate', text: 'PH1_SHIP_GATE_ARGS: skip', frontmatter: {}, source: 'plugin', pluginName: 'ph1-pwa-kit' } as never)
+  expect(shown.text).toContain('skipped until the next code change')
   const allowed = await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)
   expect((allowed as { deny?: string }).deny).toBeUndefined()
 

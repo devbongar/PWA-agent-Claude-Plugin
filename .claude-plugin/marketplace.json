@@ -11,9 +11,9 @@
       "description": "PWA development team: frontend and backend developers, QA, code and UI reviewers, plus the /new-feature workflow"
     },
     {
-      "name": "agent-office",
-      "source": "./plugins/agent-office",
-      "description": "Live pixel-art office: watch your agents walk to their desks while they work"
+      "name": "ph1-office",
+      "source": "./plugins/ph1-office",
+      "description": "Ph1 Agent Office: live pixel-art office where your agents walk to their desks while they work"
     },
     {
       "name": "ph1-brain",
@@ -22,6 +22,7 @@
     }
   ],
   "renames": {
-    "second-brain": "ph1-brain"
+    "second-brain": "ph1-brain",
+    "agent-office": "ph1-office"
   }
 }

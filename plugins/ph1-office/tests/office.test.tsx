@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 const PANE = {
-  plugin: 'agent-office',
+  plugin: 'ph1-office',
   component: 'Pane',
   requestId: 'office',
   props: {
@@ -20,7 +20,6 @@ function engine(on: any, status = 'running') {
   on('agent.list', () => ({
     value: [{ id: 'a1', description: '', type: 'x', status }],
   }))
-  on('command.register', () => ({ value: { command: 'ph1-office' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'a1' }))
@@ -142,4 +141,17 @@ test('an agent the engine reports completed is sent home by the backstop', async
   expect((await ui.find({ type: 'Text', text: /✓ Backend/ }))?.text).toContain('done in')
   expect(await ui.find({ type: 'Text', text: /● Backend/ })).toBeUndefined()
   await ui.unmount()
+})
+
+test('/ph1-office:open opens the pane', async ($, on) => {
+  let opened = ''
+  on('ui.open', (_: unknown, e: { id: string }) => { opened = e.id; return { value: { isPlaced: true } } })
+  on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  on('skill.prompt', (_: unknown, e: { text: string }) => ({ text: e.text }))
+  mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  opened = ''
+  const shown = await $.skill.prompt({ skill: 'ph1-office:open', text: 'x', frontmatter: {}, source: 'plugin', pluginName: 'ph1-office' } as never)
+  expect(opened).toBe('office')
+  expect(shown.text).toContain('Agent office pane is open')
 })
