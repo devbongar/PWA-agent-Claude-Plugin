@@ -50,7 +50,7 @@ test('an agent walks in, works, and walks back out', async ($, on) => {
 
   for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    const svg = await ui.find({ type: 'Svg' })
+    const svg = (await ui.findAll({ type: 'Svg' })).at(-1)
     const source = String(svg?.props.source ?? '')
     expect(source).toContain('<svg')
     expect(source).toContain('animateTransform')
@@ -77,7 +77,7 @@ test('an agent walks in, works, and walks back out', async ($, on) => {
 
   const after = await $.ui.mount({ ...PANE, surface: 'vscode' })
   expect((await after.find({ type: 'Text', text: /✓ Frontend/ }))?.text).toContain('done in')
-  expect(String((await after.find({ type: 'Svg' }))?.props.source)).toContain('done!')
+  expect(String((await after.findAll({ type: 'Svg' })).at(-1)?.props.source)).toContain('done!')
   await after.unmount()
 })
 
@@ -87,7 +87,7 @@ test('a main-loop tool call shows on the lead', async ($, on) => {
   await $.tool.call({ tool: 'Bash', command: 'ls' })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
-  const source = String((await ui.find({ type: 'Svg' }))?.props.source)
+  const source = String((await ui.findAll({ type: 'Svg' })).at(-1)?.props.source)
   expect(source).toContain('Lead (Claude)')
   expect(source).toContain('running')
   await ui.unmount()
@@ -99,7 +99,7 @@ test('an unknown agent type takes a hot desk', async ($, on) => {
   await $.agent.spawn({ tool_use_id: 't1', provider: { plugin: 'engine', tier: 'core' }, parentModel: 'opus', background: false, fork: false, prompt: 'Look around', description: 'Explore code', subagentType: 'Explore' })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
-  expect(String((await ui.find({ type: 'Svg' }))?.props.source)).toContain('>Explore<')
+  expect(String((await ui.findAll({ type: 'Svg' })).at(-1)?.props.source)).toContain('>Explore<')
   expect((await ui.find({ type: 'Text', text: /Explore/ }))?.text).toContain('Explore code')
   await ui.unmount()
 })
@@ -157,4 +157,40 @@ test('/ph1-office:open opens the pane', async ($, on) => {
   expect(opened).toBe('office')
   expect(String((ran as { result?: unknown }).result)).toContain('pane is open')
   expect((await $.tool.check({ tool: 'mcp__ph1-office__open', input: {} })).decision).toBe('allow')
+})
+
+test('the 5-hour and weekly limits show as gauges and in the status bar', async ($, on) => {
+  let status: string | undefined
+  const resets = new Date(Date.now() + (2 * 60 + 13) * 60000).toISOString()
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.status', (_: unknown, e: { text?: string }) => { status = e.text; return { value: undefined } })
+  on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  on('tool.register', (_: unknown, e: { name: string }) => ({ value: { tool: e.name } }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
+  on('session.measure', (_: unknown, e: { changed: ('context' | 'rateLimits' | 'cost')[] }) => ({ changed: e.changed }))
+  mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+
+  await $.session.measure({
+    context: { window: 200000 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 42, resetsAt: resets },
+      { kind: 'seven_day', percentUsed: 81.5 },
+    ],
+    changed: ['rateLimits'],
+  } as never)
+  expect(status).toContain('5h limit 42%')
+  expect(status).toContain('reset 2h 13m')
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  const svgs = await ui.findAll({ type: 'Svg' })
+  const gauge = String(svgs[0]?.props.source)
+  expect(gauge).toContain('5-hour limit: 42% used')
+  expect(gauge).toContain('Weekly limit: 82% used')
+  expect(gauge).toContain('#f59e0b') // weekly at 81.5% is amber
+  await ui.unmount()
+
+  const term = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await term.find({ type: 'Text', text: /5-hour limit/ }))?.text).toContain('42% used')
+  await term.unmount()
 })

@@ -9,8 +9,10 @@ export type OfficeAgent = {
 
 export type LeadState = { activity?: string; at: number }
 
+export type LimitsState = { readings: { kind: string; percentUsed: number; resetsAt?: string }[]; at: number }
+
 declare module 'claude-code' {
   interface PluginState {
-    'ph1-office': { agents: Shaped<OfficeAgent[]>; lead: Shaped<LeadState> }
+    'ph1-office': { agents: Shaped<OfficeAgent[]>; lead: Shaped<LeadState>; limits: Shaped<LimitsState> }
   }
 }
