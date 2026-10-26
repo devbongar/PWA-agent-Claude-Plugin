@@ -55,16 +55,19 @@ function ensureTicker($: Engine): void {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     void $.ui.open({ id: PANE, title: TITLE })
+    await $.tool.register({ name: 'open', description: 'Open the Ph1 Agent Office pane.', isDeferred: false })
     ensureTicker($)
     return next(e)
   })
 
-  // /ph1-office:open reopens the pane.
-  on('skill.prompt', async ($, e, next) => {
-    if (!/(^|:)open$/.test(e.skill) || (e.pluginName !== undefined && e.pluginName !== 'ph1-office')) return next(e)
-    await $.ui.open({ id: PANE, title: TITLE })
-    return { text: 'Tell the person in one short sentence that the Agent office pane is open. Do nothing else.' }
+  // /ph1-office:open asks Claude to call this tool, which reopens the pane.
+  on('tool.call', { tool: 'mcp__ph1-office__open' }, async $ => {
+    const opened = await $.ui.open({ id: PANE, title: TITLE })
+    return { result: opened.isPlaced ? 'The Agent office pane is open.' : `The Agent office pane is waiting for room to open (${opened.reason ?? 'no surface'}).` }
   })
+  on('tool.check', async ($, e, next) =>
+    e.tool === 'mcp__ph1-office__open' ? { decision: 'allow', reason: 'ph1-office: open its own pane' } : next(e),
+  )
 
   // An agent starts: it gets a record, and its character walks to its desk.
   on('agent.spawn', async ($, e, next) => {

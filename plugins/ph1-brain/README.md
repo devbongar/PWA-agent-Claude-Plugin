@@ -15,7 +15,7 @@ A company-wide second brain for Claude, in two folders:
 
 - First run creates the brain folder (default `~/Videos/ph1-brain`; change it in `/config` under ph1-brain).
 - New files in raw/ are ingested in the background at session start and every 5 minutes.
-- Every session is told where the brain is, and reads the wiki when a request touches clients, projects or past decisions.
+- A short marked "Ph1 second brain" section is kept in your personal `~/.claude/CLAUDE.md`, so every session is told where the brain is (turn off in `/config`), and reads the wiki when a request touches clients, projects or past decisions.
 - `/ph1-pwa-kit:new-feature` reads the brain before planning and updates the project's wiki page when done.
 
 ## Commands

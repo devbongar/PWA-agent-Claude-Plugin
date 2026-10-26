@@ -21,6 +21,7 @@ function engine(on: any, status = 'running') {
     value: [{ id: 'a1', description: '', type: 'x', status }],
   }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('tool.register', (_: unknown, e: { name: string }) => ({ value: { tool: e.name } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'a1' }))
   on('tool.call', () => ({ result: {} }))
@@ -147,11 +148,13 @@ test('/ph1-office:open opens the pane', async ($, on) => {
   let opened = ''
   on('ui.open', (_: unknown, e: { id: string }) => { opened = e.id; return { value: { isPlaced: true } } })
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('skill.prompt', (_: unknown, e: { text: string }) => ({ text: e.text }))
+  on('tool.register', (_: unknown, e: { name: string }) => ({ value: { tool: e.name } }))
+  on('tool.check', () => ({ decision: 'ask' }))
   mock.clock(on)
   await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
   opened = ''
-  const shown = await $.skill.prompt({ skill: 'ph1-office:open', text: 'x', frontmatter: {}, source: 'plugin', pluginName: 'ph1-office' } as never)
+  const ran = await $.tool.call({ tool: 'mcp__ph1-office__open' } as never)
   expect(opened).toBe('office')
-  expect(shown.text).toContain('Agent office pane is open')
+  expect(String((ran as { result?: unknown }).result)).toContain('pane is open')
+  expect((await $.tool.check({ tool: 'mcp__ph1-office__open', input: {} })).decision).toBe('allow')
 })

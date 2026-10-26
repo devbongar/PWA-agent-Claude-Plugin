@@ -13,7 +13,7 @@ You are the project lead. Plan and coordinate; delegate the building, testing an
 ## 1. Plan
 
 - Read the relevant parts of the codebase so the plan fits the existing structure.
-- **Check the second brain** (if your instructions have a "Second brain" section): read its `wiki/index.md`, then the pages for this project and client and any related decisions or topics. Use past decisions, requirements and lessons in the plan, and list the wiki pages you used.
+- **Check the second brain** (if the ph1-brain plugin is installed: your CLAUDE.md has a "Ph1 second brain" section with its path): read its `wiki/index.md`, then the pages for this project and client and any related decisions or topics. Use past decisions, requirements and lessons in the plan, and list the wiki pages you used.
 - Show me:
   - What the feature does, as a list of **acceptance criteria**
   - Frontend work: screens and components, how they look on mobile and desktop, offline behaviour
@@ -68,7 +68,7 @@ First **update the second brain** (see below), then finish with a short summary:
 - Which second-brain pages were updated (if a brain is set up)
 - Anything left open or needing my decision
 
-**Updating the second brain** (if your instructions have a "Second brain" section): create or update the project's page in its `wiki/projects/` folder with what was built, key decisions and why, the acceptance criteria result, lessons learned, and the PR or branch. Link related client, decision and topic pages, add a decision page for any decision that matters later, and add one line to `wiki/log.md`. Never write to its `raw/` folder.
+**Updating the second brain** (if the ph1-brain plugin is installed: your CLAUDE.md has a "Ph1 second brain" section with its path): create or update the project's page in its `wiki/projects/` folder with what was built, key decisions and why, the acceptance criteria result, lessons learned, and the PR or branch. Link related client, decision and topic pages, add a decision page for any decision that matters later, and add one line to `wiki/log.md`. Never write to its `raw/` folder.
 
 Do not commit or push unless I ask.
 

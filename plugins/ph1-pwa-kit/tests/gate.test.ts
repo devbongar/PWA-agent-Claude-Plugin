@@ -8,7 +8,9 @@ const FE = 'ph1-pwa-kit:frontend-developer'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function engine(on: any) {
   let n = 0
-  on('command.register', () => ({ value: { command: 'ph1-ship-gate' } }))
+  on('tool.register', (_: unknown, e: { name: string }) => ({ value: { tool: e.name } }))
+  on('prompt.submit', (_: unknown, e: unknown) => e)
+  on('tool.check', () => ({ decision: 'allow' }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('skill.prompt', (_: unknown, e: { text: string }) => ({ text: e.text }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: `a${++n}` }))
@@ -92,16 +94,25 @@ test('a fix after QA needs QA again, but QA writing tests does not', async ($, o
   expect(String((blocked as { deny?: string }).deny)).not.toContain('code-reviewer')
 })
 
-test('the person can skip the gate with /ph1-pwa-kit:ship-gate', async ($, on) => {
+test('only the person can skip the gate', async ($, on) => {
   engine(on)
+  let messages: { role: 'user' | 'assistant'; text: string; toolUses: never[] }[] = []
+  on('session.messages', () => ({ value: messages }))
   await startFeature($)
   await $.tool.call({ tool: 'Edit', file_path: '/a.ts', old_string: 'a', new_string: 'b' } as never)
 
   expect(String(((await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)) as { deny?: string }).deny)).toContain('Ship gate')
 
-  // The person types /ph1-pwa-kit:ship-gate skip (the skill the model can't invoke).
-  const shown = await $.skill.prompt({ skill: 'ph1-pwa-kit:ship-gate', text: 'PH1_SHIP_GATE_ARGS: skip', frontmatter: {}, source: 'plugin', pluginName: 'ph1-pwa-kit' } as never)
-  expect(shown.text).toContain('skipped until the next code change')
+  // The model tries to skip on its own: refused (the person's last message didn't ask).
+  messages = [{ role: 'user', text: 'commit it please', toolUses: [] }]
+  const byModel = await $.tool.call({ tool: 'mcp__ph1-pwa-kit__ship_gate_change', action: 'skip' } as never)
+  expect(String((byModel as { result?: unknown }).result)).toContain('only the person')
+  expect((await $.tool.check({ tool: 'mcp__ph1-pwa-kit__ship_gate_change', input: { action: 'skip' } })).decision).toBe('ask')
+
+  // The person typed /ph1-pwa-kit:ship-gate skip.
+  messages = [{ role: 'user', text: '/ph1-pwa-kit:ship-gate skip', toolUses: [] }]
+  const byPerson = await $.tool.call({ tool: 'mcp__ph1-pwa-kit__ship_gate_change', action: 'skip' } as never)
+  expect(String((byPerson as { result?: unknown }).result)).toContain('skipped until the next code change')
   const allowed = await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)
   expect((allowed as { deny?: string }).deny).toBeUndefined()
 
@@ -133,4 +144,22 @@ test('edits outside the project (like the second brain wiki) do not reset the ga
   await $.tool.call({ tool: 'Write', file_path: '/home/me/Videos/ph1-brain/wiki/projects/app.md', content: 'x' } as never)
   const ok = await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)
   expect((ok as { deny?: string }).deny).toBeUndefined()
+})
+
+test('starting a developer agent turns the gate on, even without the skill event', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.agent.spawn(spawn(FE))
+  await $.tool.call({ tool: 'Edit', file_path: '/a.ts', old_string: 'a', new_string: 'b', agentId: 'a1' } as never)
+  const blocked = await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)
+  expect(String((blocked as { deny?: string }).deny)).toContain('Ship gate')
+})
+
+test('typing /ph1-pwa-kit:new-feature turns the gate on', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.prompt.submit({ text: '/ph1-pwa-kit:new-feature x', origin: { kind: 'composer' }, command: { name: 'ph1-pwa-kit:new-feature', args: 'x' } } as never)
+  await $.tool.call({ tool: 'Edit', file_path: '/a.ts', old_string: 'a', new_string: 'b' } as never)
+  const blocked = await $.tool.call({ tool: 'Bash', command: 'git push' } as never)
+  expect(String((blocked as { deny?: string }).deny)).toContain('Ship gate')
 })

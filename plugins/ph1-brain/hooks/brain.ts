@@ -32,6 +32,45 @@ async function locate($: EngineInterface, options: PluginOptions): Promise<Brain
   return { root, raw: `${root}/raw`, wiki: `${root}/wiki`, meta: `${root}/wiki/_meta` }
 }
 
+function guidance(b: Brain): string {
+  return [
+    `## Ph1 second brain`,
+    ``,
+    `The company's second brain is at ${b.root} (plain Markdown; managed by the ph1-brain plugin).`,
+    ``,
+    `- When a request touches clients, projects, past decisions, requirements or lessons learned, read ${b.wiki}/index.md first, then the relevant pages, and say which pages you used.`,
+    `- You may create and edit pages under ${b.wiki}/ (for example a project page after finishing a feature; add a line to ${b.wiki}/log.md).`,
+    `- Never change anything in ${b.raw}/: no edits, moves, renames or deletes. It is blocked.`,
+    `- Never ask the person to organize, sort or rename anything in the brain.`,
+    `- Don't load the brain for unrelated tasks.`,
+  ].join('\n')
+}
+
+const START = '<!-- ph1-brain:start (managed by the ph1-brain plugin; edits inside are replaced) -->'
+const END = '<!-- ph1-brain:end -->'
+
+// Keep a short, marked section about the brain in the user's own CLAUDE.md, which every
+// session and subagent loads. Only the text between the markers is ever touched.
+async function syncClaudeMd($: EngineInterface, b: Brain, on: boolean): Promise<void> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  if (!home) return
+  const path = `${home.replace(/\\/g, '/').replace(/\/$/, '')}/.claude/CLAUDE.md`
+  const current = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
+  const block = `${START}\n${guidance(b)}\n${END}`
+  const start = current.indexOf(START.slice(0, 22))
+  const end = current.indexOf(END)
+  let next: string
+  if (start >= 0 && end > start) {
+    const before = current.slice(0, start)
+    const after = current.slice(end + END.length)
+    next = on ? `${before}${block}${after}` : `${before.replace(/\n+$/, '\n')}${after.replace(/^\n+/, '')}`
+  } else {
+    if (!on) return
+    next = current ? `${current.replace(/\n*$/, '\n\n')}${block}\n` : `${block}\n`
+  }
+  if (next !== current) await $.fs.write(path, next)
+}
+
 const CLAUDE_MD = `# Ph1world second brain
 
 This folder is the company's second brain. Everything here is plain Markdown.
@@ -159,6 +198,7 @@ export const register: Register = (on, options) => {
     brain = await locate($, options)
     const b = brain
     await bootstrap($, b).catch(() => undefined)
+    await syncClaudeMd($, b, options['claude_md'] !== false).catch(() => undefined)
     await $.tool.register({
       name: 'ingest',
       description: 'Start the Ph1 brain librarian on new or changed files in raw/ (it runs in the background and builds the wiki). Returns what was started.',
@@ -214,7 +254,7 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // Every session knows the brain exists and how to use it.
+  // Also offered through the system prompt (some setups hold this event back; CLAUDE.md covers it).
   on('prompt.compose', async ($, e, next) => {
     const result = await next(e)
     if (!brain) return result
@@ -225,15 +265,7 @@ export const register: Register = (on, options) => {
         {
           id: 'ph1-brain:context',
           scope: 'session',
-          text: [
-            `# Second brain`,
-            `The company's second brain is at ${b.root} (plain Markdown).`,
-            `- When a request touches clients, projects, past decisions, requirements or lessons learned, read ${b.wiki}/index.md first, then the relevant pages, and say which pages you used.`,
-            `- You may create and edit pages under ${b.wiki}/ (for example a project page after finishing a feature; add a line to ${b.wiki}/log.md).`,
-            `- Never change anything in ${b.raw}/: no edits, moves, renames or deletes. It is blocked.`,
-            `- Never ask the person to organize, sort or rename anything in the brain.`,
-            `- Don't load the brain for unrelated tasks.`,
-          ].join('\n'),
+          text: guidance(b),
         },
       ],
     }

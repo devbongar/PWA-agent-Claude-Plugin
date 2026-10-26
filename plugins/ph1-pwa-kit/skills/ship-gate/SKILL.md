@@ -1,9 +1,12 @@
 ---
 name: ship-gate
-description: Ship gate for /ph1-pwa-kit:new-feature - show its status, or (only when you type it) skip it until the next code change, turn it off, or turn it on.
+description: Ship gate for /ph1-pwa-kit:new-feature - show its status, or (only when the person types it) skip it until the next code change, turn it off, or turn it on.
 argument-hint: "[status | skip | off | on]"
 disable-model-invocation: true
 ---
-PH1_SHIP_GATE_ARGS: $ARGUMENTS
+The person typed: /ph1-pwa-kit:ship-gate $ARGUMENTS
 
-(The ph1-pwa-kit plugin answers this command. If you can read this line, the plugin's code isn't running: tell the person to check that ph1-pwa-kit is enabled in /plugins.)
+- If that is empty or "status": call the `mcp__ph1-pwa-kit__ship_gate_status` tool and show its answer exactly as written.
+- If it is "skip", "off" or "on": call the `mcp__ph1-pwa-kit__ship_gate_change` tool with that `action`, and show its answer exactly as written. A permission prompt may ask the person to confirm; that's expected.
+
+Load the tool with ToolSearch first if it isn't loaded. Do nothing else. Never call ship_gate_change unless the person typed this command.

@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 Run a health check on the second brain's wiki.
 
-Use the **ph1-brain:librarian** agent, with the brain folder (from your instructions under "Second brain", configured as `${user_config.brain_path}`) as its working directory, and ask it to run its **lint** procedure on the whole wiki.
+Use the **ph1-brain:librarian** agent, with the brain folder (`${user_config.brain_path}`, where `~` is the user's home folder; full path in your CLAUDE.md's "Ph1 second brain" section) as its working directory, and ask it to run its **lint** procedure on the whole wiki.
 
 When it finishes, give me a short summary:
 

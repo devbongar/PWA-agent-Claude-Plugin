@@ -1,6 +1,6 @@
 {
   "name": "ph1-brain",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Ph1 company second brain: drop anything into raw/, a librarian agent builds a linked wiki every Claude session can use",
   "author": {
     "name": "Ph1world Design and Construction"
@@ -16,6 +16,12 @@
       "type": "boolean",
       "title": "Ingest automatically",
       "description": "Process new files in raw/ in the background at session start and every few minutes. Off: you get a notice and run /brain-ingest yourself.",
+      "default": true
+    },
+    "claude_md": {
+      "type": "boolean",
+      "title": "Tell every session about the brain",
+      "description": "Keep a short marked 'Ph1 second brain' section in your personal CLAUDE.md (~/.claude/CLAUDE.md) so every Claude Code session and agent knows where the brain is. Turn off to remove it.",
       "default": true
     }
   },

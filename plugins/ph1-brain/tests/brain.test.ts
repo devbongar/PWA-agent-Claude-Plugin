@@ -36,7 +36,7 @@ function engine(on: any, fs: Fs, spawned: { prompt: string; cwd?: string }[]) {
     }
     return { value: [...names].map(([name, v]) => ({ name, kind: v.kind, size: 1, mtimeMs: v.mtimeMs, isLink: false })) }
   })
-  on('tool.register', () => ({ value: undefined }))
+  on('tool.register', (_: unknown, e: { name: string }) => ({ value: { tool: e.name } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('agent.spawn', (_: unknown, e: { prompt: string; cwd?: string }) => {
     spawned.push({ prompt: e.prompt, cwd: e.cwd })
@@ -140,4 +140,27 @@ test('the status tool reports the brain', async ($, on) => {
   const text = String((ran as { result?: unknown }).result)
   expect(text).toContain(`Brain folder: ${ROOT}`)
   expect(text).toContain('/ph1-brain:ingest')
+})
+
+test('a marked brain section is kept in the personal CLAUDE.md, leaving the rest alone', async ($, on) => {
+  const fs: Fs = new Map()
+  engine(on, fs, [])
+  fs.set(`${HOME}/.claude/CLAUDE.md`, { text: '# My rules\n\nUse tabs.\n', mtimeMs: 1 })
+  await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
+  const text = fs.get(`${HOME}/.claude/CLAUDE.md`)!.text
+  expect(text.startsWith('# My rules\n\nUse tabs.\n')).toBe(true)
+  expect(text).toContain('## Ph1 second brain')
+  expect(text).toContain(`${ROOT}/wiki/index.md`)
+  expect(text.split('ph1-brain:start').length).toBe(2)
+})
+
+test('the CLAUDE.md section is removed when turned off', { options: { claude_md: false } }, async ($, on) => {
+  const fs: Fs = new Map()
+  engine(on, fs, [])
+  fs.set(`${HOME}/.claude/CLAUDE.md`, { text: '# My rules\n\n<!-- ph1-brain:start (managed) -->\nold\n<!-- ph1-brain:end -->\n\nMore.\n', mtimeMs: 1 })
+  await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
+  const text = fs.get(`${HOME}/.claude/CLAUDE.md`)!.text
+  expect(text).not.toContain('ph1-brain')
+  expect(text).toContain('# My rules')
+  expect(text).toContain('More.')
 })

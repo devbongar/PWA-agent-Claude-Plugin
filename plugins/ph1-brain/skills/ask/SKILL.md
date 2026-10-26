@@ -5,7 +5,7 @@ argument-hint: [your question]
 ---
 Answer this question from the second brain: $ARGUMENTS
 
-The brain's location is in your instructions under "Second brain" (configured as `${user_config.brain_path}`, where `~` is the user's home folder).
+The brain is at `${user_config.brain_path}` (`~` is the user's home folder; your CLAUDE.md's "Ph1 second brain" section has the full path).
 
 1. Read `wiki/index.md`, then the pages relevant to the question. Follow links to related pages as needed. Search the wiki (Grep) if the index doesn't point to an answer.
 2. Answer clearly and briefly. After each key fact, cite the wiki page it came from, e.g. `(wiki/projects/site-reports-app.md)`. Mention the original raw source when it matters.

@@ -34,8 +34,23 @@ async function finish($: EngineInterface, agentId: string): Promise<void> {
   })
 }
 
-const isOurSkill = (skill: string, pluginName: string | undefined, name: string) =>
-  new RegExp(`(^|:)${name}$`).test(skill) && (pluginName === undefined || pluginName === 'ph1-pwa-kit')
+const STATUS_TOOL = 'mcp__ph1-pwa-kit__ship_gate_status'
+const CHANGE_TOOL = 'mcp__ph1-pwa-kit__ship_gate_change'
+const isNewFeature = (name: string) => /(^|:)new-feature$/.test(name.replace(/^\//, ''))
+const isDeveloper = (type: string) => /(^|:)(frontend|backend)-developer$/.test(type)
+
+// Turn the gate on (fresh gates), unless it's already on for this feature.
+async function activate($: EngineInterface, fresh: boolean): Promise<void> {
+  await set($, g => (fresh || !g.active ? { ...EMPTY, active: true } : g))
+}
+
+// Skip/off must come from the person: their latest message has to ask for it.
+async function personAsked($: EngineInterface, arg: string): Promise<boolean> {
+  const rows = await $.session.messages()
+  const lastUser = [...rows].reverse().find(r => r.role === 'user' && (r.toolResults ?? []).length === 0)
+  const text = (lastUser?.text ?? '').toLowerCase()
+  return /ship[-_ ]?gate/.test(text) && new RegExp(`\\b${arg}\\b`).test(text)
+}
 
 async function gateCommand($: EngineInterface, arg: string): Promise<string> {
   if (arg === 'skip') {
@@ -57,28 +72,52 @@ async function gateCommand($: EngineInterface, arg: string): Promise<string> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     projectDir = e.cwd
+    const result = await next(e)
+    await $.tool.register({ name: 'ship_gate_status', description: 'Show the ph1-pwa-kit ship gate status: whether code review and QA have run for the latest code changes.', isDeferred: false })
+    await $.tool.register({
+      name: 'ship_gate_change',
+      description: "Change the ph1-pwa-kit ship gate. Only when the person's latest message asks for it (/ph1-pwa-kit:ship-gate skip|off|on); never on your own initiative.",
+      inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['skip', 'off', 'on'] } }, required: ['action'] },
+      isDeferred: false,
+    })
     $.ui.status(statusText(await read($, gateAtom)))
+    return result
+  })
+
+  // The gate turns on with /new-feature. Several signals, since some events can be held back
+  // by plugins above this one: the typed command, the skill expanding, or the Skill tool.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.command && isNewFeature(e.command.name)) await activate($, true)
+    return next(e)
+  })
+  on('skill.prompt', async ($, e, next) => {
+    if (isNewFeature(e.skill)) await activate($, true)
     return next(e)
   })
 
-  on('skill.prompt', async ($, e, next) => {
-    // /new-feature turns the gate on for this session (a fresh feature, fresh gates).
-    if (/(^|:)new-feature$/.test(e.skill)) {
-      await set($, () => ({ ...EMPTY, active: true }))
-      return next(e)
+  // The model-facing tools behind /ph1-pwa-kit:ship-gate (registered at session start).
+  on('tool.call', { tool: STATUS_TOOL }, async $ => ({ result: await gateCommand($, 'status') }))
+  on('tool.call', { tool: CHANGE_TOOL }, async ($, e) => {
+    const arg = String((e as { action?: unknown }).action ?? '').trim().toLowerCase()
+    if (arg !== 'skip' && arg !== 'off' && arg !== 'on') return { result: 'Unknown action. Use skip, off or on.' }
+    if (arg !== 'on' && !(await personAsked($, arg))) {
+      return { result: `Refused: only the person can ${arg} the ship gate, by typing /ph1-pwa-kit:ship-gate ${arg} themselves.` }
     }
-    // /ph1-pwa-kit:ship-gate. Its skill can't be invoked by the model (disable-model-invocation),
-    // so reaching here means the person typed it: they alone may skip or turn off the gate.
-    if (isOurSkill(e.skill, e.pluginName, 'ship-gate')) {
-      const computed = await next(e)
-      const arg = (/PH1_SHIP_GATE_ARGS:(.*)/.exec(computed.text)?.[1] ?? '').trim().toLowerCase()
-      return { text: `Show the person this ship gate result exactly as written, and do nothing else:\n\n${await gateCommand($, arg)}` }
+    return { result: await gateCommand($, arg) }
+  })
+  // Changing the gate always asks the person (a plugin's ask goes to them, never a classifier).
+  on('tool.check', async ($, e, next) => {
+    if (e.tool === STATUS_TOOL) return { decision: 'allow', reason: 'ph1-pwa-kit: ship gate status' }
+    if (e.tool === CHANGE_TOOL) {
+      const action = String((e.input as { action?: unknown } | undefined)?.action ?? '')
+      return action === 'on' ? { decision: 'allow', reason: 'ph1-pwa-kit: turning the ship gate on' } : { decision: 'ask', reason: `Allow Claude to ${action} the ship gate?` }
     }
     return next(e)
   })
 
   // Track reviewer and QA agents by id.
   on('agent.spawn', async ($, e, next) => {
+    if (isDeveloper(e.subagentType)) await activate($, false) // building with the team turns the gate on
     const result = await next(e)
     if (result.agentId && (isReviewer(e.subagentType) || isQa(e.subagentType))) {
       const id = result.agentId
@@ -98,6 +137,7 @@ export const register: Register = on => {
   // Code edits make the gates stale; ship commands are checked against them.
   on('tool.call', async ($, e, next) => {
     const tool = String(e.tool)
+    if (tool === 'Skill' && isNewFeature(String((e as { skill?: unknown }).skill ?? ''))) await activate($, true)
     const s = await read($, gateAtom)
     if (!s.active) return next(e)
 
