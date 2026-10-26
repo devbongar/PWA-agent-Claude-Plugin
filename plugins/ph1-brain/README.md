@@ -1,4 +1,4 @@
-# second-brain
+# ph1-brain (Ph1 Brain)
 
 A company-wide second brain for Claude, in two folders:
 
@@ -13,16 +13,16 @@ A company-wide second brain for Claude, in two folders:
 
 ## What happens automatically
 
-- First run creates the brain folder (default `~/Videos/ph1-brain`; change it in `/config` under second-brain).
+- First run creates the brain folder (default `~/Videos/ph1-brain`; change it in `/config` under ph1-brain).
 - New files in raw/ are ingested in the background at session start and every 5 minutes.
 - Every session is told where the brain is, and reads the wiki when a request touches clients, projects or past decisions.
 - `/ph1-pwa-kit:new-feature` reads the brain before planning and updates the project's wiki page when done.
 
 ## Commands
 
-- `/brain` - where the brain is and what's waiting
-- `/brain-ingest` - process new raw files now
-- `/second-brain:ask <question>` - answer from the wiki, with sources
-- `/second-brain:lint` - health check: contradictions, broken links, gaps
+- `/ph1-brain:status` - where the brain is and what's waiting
+- `/ph1-brain:ingest` - process new raw files now
+- `/ph1-brain:ask <question>` - answer from the wiki, with sources
+- `/ph1-brain:lint` - health check: contradictions, broken links, gaps
 
 Works in VS Code and the Claude desktop app's Code tab. Browse the wiki in any Markdown viewer; Obsidian shows the links as a graph.

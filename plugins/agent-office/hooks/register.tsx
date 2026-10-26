@@ -54,13 +54,13 @@ function ensureTicker($: Engine): void {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'office', description: 'Show the agent office: watch your agents walk to their desks' })
+    await $.command.register({ name: 'ph1-office', description: 'Show the agent office: watch your agents walk to their desks' })
     void $.ui.open({ id: PANE, title: TITLE })
     ensureTicker($)
     return next(e)
   })
 
-  on('command.run', { command: 'office' }, async $ => {
+  on('command.run', { command: 'ph1-office' }, async $ => {
     await $.ui.open({ id: PANE, title: TITLE })
     return { text: 'Agent office opened.' }
   })

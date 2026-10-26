@@ -49,7 +49,7 @@ export function denyText(m: Missing): string | undefined {
   return (
     `Ship gate (ph1-pwa-kit /new-feature): ${parts.join('; ')}. ` +
     `Run ${[m.review ? 'code-reviewer' : '', m.qa ? 'qa-engineer' : ''].filter(Boolean).join(' and then ')} before committing, pushing or opening a PR. ` +
-    `Do not try to get around this. If the person wants to ship anyway, ask them to type /ship-gate skip themselves.`
+    `Do not try to get around this. If the person wants to ship anyway, ask them to type /ph1-ship-gate skip themselves.`
   )
 }
 

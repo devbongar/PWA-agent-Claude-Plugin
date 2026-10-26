@@ -20,7 +20,7 @@ function engine(on: any, status = 'running') {
   on('agent.list', () => ({
     value: [{ id: 'a1', description: '', type: 'x', status }],
   }))
-  on('command.register', () => ({ value: { command: 'office' } }))
+  on('command.register', () => ({ value: { command: 'ph1-office' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: 'a1' }))

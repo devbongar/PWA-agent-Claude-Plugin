@@ -1,7 +1,7 @@
 {
-  "name": "second-brain",
-  "version": "0.1.0",
-  "description": "A company-wide second brain: drop anything into raw/, a librarian agent builds a linked wiki, and every Claude session can use it",
+  "name": "ph1-brain",
+  "version": "0.2.0",
+  "description": "Ph1 company second brain: drop anything into raw/, a librarian agent builds a linked wiki every Claude session can use",
   "author": {
     "name": "Ph1world Design and Construction"
   },
@@ -18,5 +18,6 @@
       "description": "Process new files in raw/ in the background at session start and every few minutes. Off: you get a notice and run /brain-ingest yourself.",
       "default": true
     }
-  }
+  },
+  "displayName": "Ph1 Brain"
 }

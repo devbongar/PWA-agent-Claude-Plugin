@@ -8,7 +8,7 @@ const FE = 'ph1-pwa-kit:frontend-developer'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function engine(on: any) {
   let n = 0
-  on('command.register', () => ({ value: { command: 'ship-gate' } }))
+  on('command.register', () => ({ value: { command: 'ph1-ship-gate' } }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('skill.prompt', (_: unknown, e: { text: string }) => ({ text: e.text }))
   on('agent.spawn', () => ({ model: 'sonnet', agentId: `a${++n}` }))
@@ -97,11 +97,11 @@ test('only the person can skip the gate', async ($, on) => {
   await startFeature($)
   await $.tool.call({ tool: 'Edit', file_path: '/a.ts', old_string: 'a', new_string: 'b' } as never)
 
-  const byModel = await $.command.run({ command: 'ship-gate', args: 'skip', origin: { kind: 'sdk' }, presentation: 'visible' } as never)
+  const byModel = await $.command.run({ command: 'ph1-ship-gate', args: 'skip', origin: { kind: 'sdk' }, presentation: 'visible' } as never)
   expect(String((byModel as { text?: string }).text)).toContain('only the person')
   expect(String(((await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)) as { deny?: string }).deny)).toContain('Ship gate')
 
-  await $.command.run({ command: 'ship-gate', args: 'skip', origin: { kind: 'composer' }, presentation: 'visible' } as never)
+  await $.command.run({ command: 'ph1-ship-gate', args: 'skip', origin: { kind: 'composer' }, presentation: 'visible' } as never)
   const allowed = await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)
   expect((allowed as { deny?: string }).deny).toBeUndefined()
 

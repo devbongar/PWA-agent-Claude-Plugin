@@ -36,7 +36,7 @@ function engine(on: any, fs: Fs, spawned: { prompt: string; cwd?: string }[]) {
     }
     return { value: [...names].map(([name, v]) => ({ name, kind: v.kind, size: 1, mtimeMs: v.mtimeMs, isLink: false })) }
   })
-  on('command.register', (_: unknown, e: { name: string }) => ({ value: { command: e.name } }))
+  on('tool.register', () => ({ value: undefined }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('agent.spawn', (_: unknown, e: { prompt: string; cwd?: string }) => {
     spawned.push({ prompt: e.prompt, cwd: e.cwd })
@@ -74,7 +74,7 @@ test('new raw files are ingested by the librarian, then marked processed', async
   expect(spawned[0]!.cwd).toBe(ROOT)
 
   // The run reports back (in a session the engine also gives the run's id; here, its type).
-  await $.classic.SubagentStop({ stop_hook_active: false, agent_id: 'x1', agent_transcript_path: '/t', agent_type: 'second-brain:librarian' })
+  await $.classic.SubagentStop({ stop_hook_active: false, agent_id: 'x1', agent_transcript_path: '/t', agent_type: 'ph1-brain:librarian' })
   const processed = JSON.parse(fs.get(`${ROOT}/wiki/_meta/processed.json`)!.text) as Record<string, number>
   expect(processed['kickoff notes.txt']).toBe(100)
   expect(processed['briefs/acme.pdf']).toBe(200)
@@ -82,8 +82,8 @@ test('new raw files are ingested by the librarian, then marked processed', async
 
   // A changed file is picked up again.
   fs.set(`${ROOT}/raw/kickoff notes.txt`, { text: 'Updated', mtimeMs: 300 })
-  const ran = await $.command.run({ command: 'brain-ingest', args: '', origin: { kind: 'composer' }, presentation: 'visible' } as never)
-  expect(String((ran as { text?: string }).text)).toContain('1 new file')
+  const ran = await $.tool.call({ tool: 'mcp__ph1-brain__ingest' } as never)
+  expect(String((ran as { result?: unknown }).result)).toContain('1 new file')
   expect(spawned[1]!.prompt).toContain('raw/kickoff notes.txt')
 })
 
@@ -106,6 +106,7 @@ test('raw/ cannot be changed, the wiki can', async ($, on) => {
   expect((wiki as { deny?: string }).deny).toBeUndefined()
 
   expect((await $.tool.check({ tool: 'Read', input: { file_path: `${ROOT}/raw/a.txt` } })).decision).toBe('allow')
+  expect((await $.tool.check({ tool: 'mcp__ph1-brain__ingest', input: {} })).decision).toBe('allow')
   expect((await $.tool.check({ tool: 'Edit', input: { file_path: `${ROOT}/wiki/index.md` } })).decision).toBe('allow')
   expect((await $.tool.check({ tool: 'Edit', input: { file_path: `${ROOT}/raw/a.txt` } })).decision).toBe('deny')
   expect((await $.tool.check({ tool: 'Edit', input: { file_path: '/home/tester/Projects/app/src/x.ts' } })).decision).toBe('ask')
@@ -116,7 +117,7 @@ test('every session is told where the brain is', async ($, on) => {
   engine(on, fs, [])
   await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
   const composed = await $.prompt.compose({ model: 'm', promptModel: 'm', surfaces: ['vscode'], tools: [], outputStyle: { name: 'default', isKeepingCodingInstructions: true }, traits: [] } as never)
-  const section = composed.sections.find(s => s.id === 'second-brain:context')
+  const section = composed.sections.find(s => s.id === 'ph1-brain:context')
   expect(section?.text).toContain(`${ROOT}/wiki/index.md`)
   expect(section?.text).toContain('Never change anything')
 })
@@ -128,4 +129,15 @@ test('with auto-ingest off, nothing starts by itself', { options: { auto_ingest:
   fs.set(`${ROOT}/raw/a.txt`, { text: 'x', mtimeMs: 5 })
   await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
   expect(spawned).toHaveLength(0)
+})
+
+test('the status tool reports the brain', async ($, on) => {
+  const fs: Fs = new Map()
+  engine(on, fs, [])
+  fs.set(`${ROOT}/raw/a.txt`, { text: 'x', mtimeMs: 5 })
+  await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
+  const ran = await $.tool.call({ tool: 'mcp__ph1-brain__status' } as never)
+  const text = String((ran as { result?: unknown }).result)
+  expect(text).toContain(`Brain folder: ${ROOT}`)
+  expect(text).toContain('/ph1-brain:ingest')
 })

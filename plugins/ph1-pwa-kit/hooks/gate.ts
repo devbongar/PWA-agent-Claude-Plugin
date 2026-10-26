@@ -38,7 +38,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     projectDir = e.cwd
     await $.command.register({
-      name: 'ship-gate',
+      name: 'ph1-ship-gate',
       description: 'Ship gate for /new-feature: status, on, off, or skip (lets you commit without review/QA until the next code change)',
     })
     $.ui.status(statusText(await read($, gateAtom)))
@@ -52,7 +52,7 @@ export const register: Register = on => {
   })
 
   // Only the person can run this command (typed at the prompt), never the model.
-  on('command.run', { command: 'ship-gate' }, async ($, e) => {
+  on('command.run', { command: 'ph1-ship-gate' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()
     const byPerson = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
     if (arg === 'skip' || arg === 'off') {
@@ -60,7 +60,7 @@ export const register: Register = on => {
       const s = await set($, g => (arg === 'skip' ? { ...g, skipUntilChange: true } : { ...g, active: false }))
       return {
         text: arg === 'skip' ? 'Ship gate skipped until the next code change.' : 'Ship gate turned off for this session.',
-        context: [`The person ran /ship-gate ${arg}. ${statusText(s) ?? 'Ship gate: off'}.`],
+        context: [`The person ran /ph1-ship-gate ${arg}. ${statusText(s) ?? 'Ship gate: off'}.`],
       }
     }
     if (arg === 'on') {
@@ -71,7 +71,7 @@ export const register: Register = on => {
     const m = missing(s)
     return {
       text: !s.active
-        ? 'Ship gate: off (it turns on when you run /ph1-pwa-kit:new-feature, or with /ship-gate on).'
+        ? 'Ship gate: off (it turns on when you run /ph1-pwa-kit:new-feature, or with /ph1-ship-gate on).'
         : `${statusText(s)}${m.review || m.qa ? `\n${denyText(m)}` : '\nCommits, pushes and PRs are allowed.'}`,
     }
   })

@@ -11,7 +11,9 @@ type IngestState = { running: boolean; agentId?: string; batch: string[]; starte
 let current: IngestState = { running: false, batch: [], startedAt: 0, lastRunAt: 0 }
 const STALE_MS = 45 * 60 * 1000 // a run that never reported back is given up after this
 
-const LIBRARIAN = 'second-brain:librarian'
+const LIBRARIAN = 'ph1-brain:librarian'
+const INGEST_TOOL = 'mcp__ph1-brain__ingest'
+const STATUS_TOOL = 'mcp__ph1-brain__status'
 const MAX_BATCH = 25
 const CHECK_EVERY_MS = 5 * 60 * 1000
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
@@ -157,13 +159,21 @@ export const register: Register = (on, options) => {
     brain = await locate($, options)
     const b = brain
     await bootstrap($, b).catch(() => undefined)
-    await $.command.register({ name: 'brain-ingest', description: 'Process new files in the second brain raw/ folder into the wiki' })
-    await $.command.register({ name: 'brain', description: 'Show where the second brain is and what is waiting in raw/' })
+    await $.tool.register({
+      name: 'ingest',
+      description: 'Start the Ph1 brain librarian on new or changed files in raw/ (it runs in the background and builds the wiki). Returns what was started.',
+      isDeferred: false,
+    })
+    await $.tool.register({
+      name: 'status',
+      description: "Show the second brain's location, the librarian's state, and how many raw/ files are waiting to be ingested.",
+      isDeferred: false,
+    })
 
     const waiting = await pending($, b).catch(() => [] as RawFile[])
     if (waiting.length > 0) {
       if (options['auto_ingest'] !== false) await ingest($, b, 'auto').catch(() => undefined)
-      else $.ui.status(`Brain: ${waiting.length} new file(s) in raw/ - run /brain-ingest`)
+      else $.ui.status(`Brain: ${waiting.length} new file(s) in raw/ - run /ph1-brain:ingest`)
     }
     if (options['auto_ingest'] !== false && !ticker) {
       ticker = $.clock.every(CHECK_EVERY_MS, () => {
@@ -173,22 +183,23 @@ export const register: Register = (on, options) => {
     return result
   })
 
-  on('command.run', { command: 'brain-ingest' }, async $ => {
-    if (!brain) return { text: 'The brain folder is not set up yet.' }
-    return { text: await ingest($, brain, 'command') }
+  // Model tools behind /ph1-brain:ingest and /ph1-brain:status.
+  on('tool.call', { tool: INGEST_TOOL }, async $ => {
+    if (!brain) return { result: 'The brain folder is not set up yet.' }
+    return { result: await ingest($, brain, 'command') }
   })
 
-  on('command.run', { command: 'brain' }, async $ => {
-    if (!brain) return { text: 'The brain folder is not set up yet.' }
+  on('tool.call', { tool: STATUS_TOOL }, async $ => {
+    if (!brain) return { result: 'The brain folder is not set up yet.' }
     const waiting = await pending($, brain).catch(() => [] as RawFile[])
     const state = current
     return {
-      text: [
+      result: [
         `Brain folder: ${brain.root}`,
         `Drop files into: ${brain.raw}`,
         state.running ? `Librarian: working on ${state.batch.length} file(s)` : `Librarian: idle`,
         `Waiting in raw/: ${waiting.length}`,
-        `Ask questions with /second-brain:ask, health check with /second-brain:lint.`,
+        `Commands: /ph1-brain:ingest, /ph1-brain:ask, /ph1-brain:lint, /ph1-brain:status`,
       ].join('\n'),
     }
   })
@@ -212,7 +223,7 @@ export const register: Register = (on, options) => {
       sections: [
         ...result.sections,
         {
-          id: 'second-brain:context',
+          id: 'ph1-brain:context',
           scope: 'session',
           text: [
             `# Second brain`,
@@ -230,14 +241,15 @@ export const register: Register = (on, options) => {
 
   // Brain reads and wiki writes are allowed from any project; raw/ writes never.
   on('tool.check', async ($, e, next) => {
+    if (e.tool === INGEST_TOOL || e.tool === STATUS_TOOL) return { decision: 'allow', reason: 'ph1-brain: its own tool' }
     if (!brain) return next(e)
     const input = (e.input ?? {}) as { file_path?: unknown; path?: unknown; notebook_path?: unknown }
     const target = String(input.file_path ?? input.notebook_path ?? input.path ?? '')
     if (!target) return next(e)
     const abs = resolve(target, cwd)
-    if (EDIT_TOOLS.has(e.tool) && isUnder(abs, brain.raw)) return { decision: 'deny', reason: 'second-brain: raw/ is read-only (rule 1: never touch raw).' }
-    if (READ_TOOLS.has(e.tool) && isUnder(abs, brain.root)) return { decision: 'allow', reason: 'second-brain: reading the brain' }
-    if (EDIT_TOOLS.has(e.tool) && isUnder(abs, brain.wiki)) return { decision: 'allow', reason: 'second-brain: writing the wiki' }
+    if (EDIT_TOOLS.has(e.tool) && isUnder(abs, brain.raw)) return { decision: 'deny', reason: 'ph1-brain: raw/ is read-only (rule 1: never touch raw).' }
+    if (READ_TOOLS.has(e.tool) && isUnder(abs, brain.root)) return { decision: 'allow', reason: 'ph1-brain: reading the brain' }
+    if (EDIT_TOOLS.has(e.tool) && isUnder(abs, brain.wiki)) return { decision: 'allow', reason: 'ph1-brain: writing the wiki' }
     return next(e)
   })
 
@@ -249,13 +261,13 @@ export const register: Register = (on, options) => {
     if (EDIT_TOOLS.has(tool)) {
       const target = String(input.file_path ?? input.notebook_path ?? '')
       if (target && isUnder(resolve(target, cwd), brain.raw)) {
-        return { deny: `second-brain: ${norm(target)} is in raw/, which is read-only. Rule 1: never touch raw/. Write to wiki/ instead.` }
+        return { deny: `ph1-brain: ${norm(target)} is in raw/, which is read-only. Rule 1: never touch raw/. Write to wiki/ instead.` }
       }
     }
     if (tool === 'Bash' || tool === 'PowerShell') {
       const command = String(input.command ?? '')
       if (touchesRaw(command, brain.raw, cwd)) {
-        return { deny: 'second-brain: this command could change files in raw/, which is read-only. Rule 1: never touch raw/. Read raw files with the Read tool instead.' }
+        return { deny: 'ph1-brain: this command could change files in raw/, which is read-only. Rule 1: never touch raw/. Read raw files with the Read tool instead.' }
       }
     }
     return next(e)
