@@ -1,0 +1,22 @@
+{
+  "name": "second-brain",
+  "version": "0.1.0",
+  "description": "A company-wide second brain: drop anything into raw/, a librarian agent builds a linked wiki, and every Claude session can use it",
+  "author": {
+    "name": "Ph1world Design and Construction"
+  },
+  "userConfig": {
+    "brain_path": {
+      "type": "string",
+      "title": "Brain folder",
+      "description": "Where the brain lives on this computer (holds raw/ and wiki/). ~ means your user folder.",
+      "default": "~/Videos/ph1-brain"
+    },
+    "auto_ingest": {
+      "type": "boolean",
+      "title": "Ingest automatically",
+      "description": "Process new files in raw/ in the background at session start and every few minutes. Off: you get a notice and run /brain-ingest yourself.",
+      "default": true
+    }
+  }
+}

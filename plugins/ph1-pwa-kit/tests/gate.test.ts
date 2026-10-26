@@ -119,3 +119,18 @@ test('non-shipping commands are never blocked', async ($, on) => {
     expect((ran as { deny?: string }).deny).toBeUndefined()
   }
 })
+
+test('edits outside the project (like the second brain wiki) do not reset the gate', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/work/app', surface: 'vscode', isInteractive: true })
+  await $.skill.prompt({ skill: 'ph1-pwa-kit:new-feature', text: 'Build this', frontmatter: {}, source: 'plugin' } as never)
+  await $.tool.call({ tool: 'Edit', file_path: '/work/app/src/a.ts', old_string: 'a', new_string: 'b' } as never)
+  await sleep(5)
+  await runAgent($, REVIEWER, 'a1')
+  await sleep(5)
+  await runAgent($, QA, 'a2')
+  await sleep(5)
+  await $.tool.call({ tool: 'Write', file_path: '/home/me/Videos/ph1-brain/wiki/projects/app.md', content: 'x' } as never)
+  const ok = await $.tool.call({ tool: 'Bash', command: 'git commit -m x' } as never)
+  expect((ok as { deny?: string }).deny).toBeUndefined()
+})

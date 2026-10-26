@@ -59,3 +59,17 @@ export function statusText(s: GateState): string | undefined {
   const m = missing(s)
   return `Ship gate: review ${m.review ? '✗' : '✓'} · QA ${m.qa ? '✗' : '✓'}`
 }
+
+// Is a file inside the project? Edits elsewhere (for example the second brain's wiki) aren't code changes.
+const normPath = (p: string) => {
+  const s = p.replace(/\\/g, '/').replace(/\/+$/, '')
+  return /^[a-zA-Z]:\//.test(s) ? s.toLowerCase() : s
+}
+export function inProject(filePath: string, cwd: string): boolean {
+  if (!cwd) return true
+  const p = filePath.replace(/\\/g, '/')
+  const abs = /^[a-zA-Z]:\//.test(p) || p.startsWith('/') ? p : `${cwd.replace(/\\/g, '/')}/${p}`
+  const a = normPath(abs)
+  const c = normPath(cwd)
+  return a === c || a.startsWith(c + '/')
+}

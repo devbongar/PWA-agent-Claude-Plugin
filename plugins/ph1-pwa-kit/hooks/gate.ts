@@ -4,7 +4,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { GateState } from '../types'
-import { EMPTY, denyText, editCounts, isEditTool, isQa, isReviewer, isShipCommand, missing, statusText } from './gate-logic'
+import { EMPTY, denyText, editCounts, inProject, isEditTool, isQa, isReviewer, isShipCommand, missing, statusText } from './gate-logic'
+
+let projectDir = ''
 
 const gateAtom = atom({ plugin: 'ph1-pwa-kit', key: 'gate' } as const, EMPTY, { shape: 'gate-1' })
 
@@ -34,6 +36,7 @@ async function finish($: EngineInterface, agentId: string): Promise<void> {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    projectDir = e.cwd
     await $.command.register({
       name: 'ship-gate',
       description: 'Ship gate for /new-feature: status, on, off, or skip (lets you commit without review/QA until the next code change)',
@@ -108,8 +111,9 @@ export const register: Register = on => {
 
     if (isEditTool(tool)) {
       const agentType = e.agentId ? s.agents[e.agentId]?.type : undefined
+      const filePath = String((e as { file_path?: unknown; notebook_path?: unknown }).file_path ?? (e as { notebook_path?: unknown }).notebook_path ?? '')
       const ran = await next(e)
-      if (ran.deny === undefined && !ran.isError && editCounts(agentType)) {
+      if (ran.deny === undefined && !ran.isError && editCounts(agentType) && inProject(filePath, projectDir)) {
         const now = Date.now()
         await set($, g => ({ ...g, firstChangeAt: g.firstChangeAt || now, lastChangeAt: now, skipUntilChange: false }))
       }

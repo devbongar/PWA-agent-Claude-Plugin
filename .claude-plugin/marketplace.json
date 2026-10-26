@@ -14,6 +14,11 @@
       "name": "agent-office",
       "source": "./plugins/agent-office",
       "description": "Live pixel-art office: watch your agents walk to their desks while they work"
+    },
+    {
+      "name": "second-brain",
+      "source": "./plugins/second-brain",
+      "description": "Company second brain: drop files into raw/, a librarian agent builds a linked wiki every Claude session can use"
     }
   ]
 }

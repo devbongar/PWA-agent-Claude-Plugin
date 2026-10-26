@@ -44,6 +44,16 @@ One-click install in VS Code:
 vscode://anthropic.claude-code/install-plugin?plugin=agent-office&marketplace=devbongar/PWA-agent-Claude-Plugin
 ```
 
+## second-brain
+
+A company-wide second brain: drop anything into `raw/`, and a librarian agent builds a linked wiki in `wiki/` that every Claude session (and `/ph1-pwa-kit:new-feature`) uses. raw/ is protected from changes. See `plugins/second-brain/README.md`.
+
+One-click install in VS Code:
+
+```
+vscode://anthropic.claude-code/install-plugin?plugin=second-brain&marketplace=devbongar/PWA-agent-Claude-Plugin
+```
+
 ## Install
 
 ```bash
