@@ -37,6 +37,11 @@ The PWA queues changes made offline and sends them later, sometimes more than on
 ## Database
 
 - Changes go through migrations, never manual edits. Add indexes for columns used in filters and lookups. Use transactions for multi-step writes.
+- **Any script that experiments on a migration or SQL file works on a copy, never the repo file.**
+- Grants and row-level security: prove them with a live probe (for example, as `anon` and as each role, try select, insert, update and delete) rather than only reading the SQL.
+- Renaming a column, key or foreign key: search for every use first. A missed reference is an outage.
+- Write files containing regexes or backslashes with the Write or Edit tool, not shell heredocs.
+- If you think the plan is wrong (for example, delete vs reopen), push back with your reasons instead of building it anyway.
 
 ## When finished
 

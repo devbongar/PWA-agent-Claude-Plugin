@@ -30,9 +30,21 @@ Start by finding what changed (`git diff` / `git diff --staged`, or the files yo
 - Consistency with the project's existing patterns, folder structure and style
 - Type errors or loose typing (`any`) if the project uses TypeScript
 
+## 4. Tests that test nothing
+
+- **Mutation or experiment scripts that change repo files in place** instead of a copy, or that leave changes behind if they stop midway: always **Must fix**
+- Text or regex assertions with no vacuity guard (nothing checks that the match count is above zero, or that a stripping step changed anything)
+- Line handling that breaks on Windows line endings (CRLF)
+- Regexes with mangled escapes, for example a backslash lost when the file was written from a shell
+- A green suite standing in for evidence that should come from a live check (grants, row-level security, auth)
+
+## Only review what's settled
+
+If another agent may still be editing the files, say so and review only finished files. Don't report a bug from a file that might have been mid-edit; re-read it first.
+
 ## Report format
 
-Group findings by severity:
+Be brief: findings, not a narrative. Group them by severity:
 
 - **Must fix** - bugs and security issues
 - **Should fix** - quality problems likely to cause trouble later
