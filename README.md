@@ -14,9 +14,12 @@ A development team for building PWAs (web apps with mobile versions) with Claude
 | `code-reviewer` | Logic, security, code quality | opus |
 | `ui-reviewer` | Mobile, tablet and desktop UI review | sonnet |
 
-Command: `/ph1-pwa-kit:new-feature <describe the feature>` - plan (waits for approval), build frontend and backend in parallel, review, fix, QA, summary.
+Commands:
 
-**Ship gate:** once `/ph1-pwa-kit:new-feature` runs in a session, commits, pushes, merges and PRs are blocked until `code-reviewer` has reviewed the feature and `qa-engineer` has tested the latest code changes. `/ph1-pwa-kit:ship-gate` shows the status; only you can run `/ph1-pwa-kit:ship-gate skip` (until the next code change) or `/ph1-pwa-kit:ship-gate off`.
+- `/ph1-pwa-kit:new-feature <describe the feature>` - picks a track first. **Full track** (database, auth, permissions, payments, sync, bigger features): plan (waits for approval), build, then code review, UI review and QA together, one fix round, summary.
+- `/ph1-pwa-kit:quick-change <describe the change>` - **quick track** for small, low-risk changes (UI tweaks, copy, small fixes): short plan without waiting, the lead builds it, code review and QA together (lighter models), one fix round.
+
+**Ship gate:** once `/ph1-pwa-kit:new-feature` or `/ph1-pwa-kit:quick-change` runs in a session, commits, pushes, merges and PRs are blocked until `code-reviewer` has reviewed the feature and `qa-engineer` has tested the latest code changes. `/ph1-pwa-kit:ship-gate` shows the status; only you can run `/ph1-pwa-kit:ship-gate skip` (until the next code change) or `/ph1-pwa-kit:ship-gate off`.
 
 ### Bundled design skills
 

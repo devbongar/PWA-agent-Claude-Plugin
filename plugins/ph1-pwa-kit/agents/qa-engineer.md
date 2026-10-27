@@ -62,6 +62,9 @@ A green suite proves nothing on its own. A test that matches nothing passes fore
 
 - **Write test files with the Write or Edit tool**, never with shell heredocs or `echo`: shells mangle backslashes in regexes.
 - Keep to the scope you were given. If the brief covers many files, test them one at a time and report progress as you go.
+- **Do only what applies.** Scale the work to the change: the list under "What to test" is a menu, not a quota. Skip what your brief says to skip, and on your own skip what can't matter (no mutation testing without rules, no offline checks unless caching or offline data changed, no full device matrix for a backend-only change). Say what you skipped in one line.
+- **You may run at the same time as the reviewers.** Only add or change test files; never touch app code.
+- **A re-check is narrow:** when asked to re-test fixes, test those fixes and their acceptance criteria only, not the whole feature again.
 - Test what the user sees and does, not implementation details.
 - No fixed `waitForTimeout`; wait for specific elements or states.
 - Run every test you write. Never weaken or delete a test to make it pass.

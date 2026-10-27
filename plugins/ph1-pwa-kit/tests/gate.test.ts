@@ -155,6 +155,24 @@ test('starting a developer agent turns the gate on, even without the skill event
   expect(String((blocked as { deny?: string }).deny)).toContain('Ship gate')
 })
 
+test('typing /ph1-pwa-kit:quick-change turns the gate on too', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.prompt.submit({ text: '/ph1-pwa-kit:quick-change x', origin: { kind: 'composer' }, command: { name: 'ph1-pwa-kit:quick-change', args: 'x' } } as never)
+  await $.tool.call({ tool: 'Edit', file_path: '/a.ts', old_string: 'a', new_string: 'b' } as never)
+  const blocked = await $.tool.call({ tool: 'Bash', command: 'git commit -m quick' } as never)
+  expect(String((blocked as { deny?: string }).deny)).toContain('Ship gate')
+
+  // Review and QA running side by side after the lead's edit both count.
+  await sleep(5)
+  await $.agent.spawn(spawn(REVIEWER))
+  await $.agent.spawn(spawn(QA))
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 'r', agentId: 'a1', reason: 'end_turn', text: '' } as never)
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 'q', agentId: 'a2', reason: 'end_turn', text: '' } as never)
+  const allowed = await $.tool.call({ tool: 'Bash', command: 'git commit -m quick' } as never)
+  expect((allowed as { deny?: string }).deny).toBeUndefined()
+})
+
 test('typing /ph1-pwa-kit:new-feature turns the gate on', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
