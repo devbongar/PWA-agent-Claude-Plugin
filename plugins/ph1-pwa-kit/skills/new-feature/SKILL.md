@@ -21,6 +21,7 @@ The brief is everything. "Review this" gets opinions; "here is what already brok
 3. **What to attack:** specific claims to try to break, for example "treat the developer's tests as claims, not coverage" or "attack the guard test first".
 4. **Disprove your own work:** ask it to show its work fails where it should (new tests run against the pre-change code must fail).
 5. **Report back:** besides findings, ask for **what you assumed but couldn't verify** (this finds more problems than asking what it found) and **anything you did beyond the brief**.
+6. **For UI work (frontend-developer, ui-reviewer):** concrete values and an existing component to copy (exact colours, widths, the screen to match), plus the app-ui-craft step: the rules that apply before coding, the **pre-delivery checklist** answered in the report, and **which skill rule changed a decision**. A report without the checklist is incomplete: send it back.
 
 ## 1. Plan
 

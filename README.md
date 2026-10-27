@@ -22,11 +22,12 @@ Command: `/ph1-pwa-kit:new-feature <describe the feature>` - plan (waits for app
 
 | Skill | Used by | When |
 |---|---|---|
-| `apple-design` | frontend-developer, ui-reviewer | Always (preloaded) |
-| `web-design-engineer` | frontend-developer, ui-reviewer | Always (preloaded); full prototype workflow only for mockups |
+| `app-ui-craft` | frontend-developer, ui-reviewer | Always (preloaded). Short rule-numbered app UI standard; agents name the rules that apply before coding, answer its pre-delivery checklist and say which rule changed a decision |
+| `apple-design` | frontend-developer, ui-reviewer | Loaded only for gestures, drag, sheets, springs or depth |
+| `web-design-engineer` | frontend-developer, ui-reviewer | Loaded only for standalone mockups or prototypes, or a design critique |
 | `landing-page-design` | frontend-developer, ui-reviewer | Landing pages and marketing sites only |
 
-They appear as `/ph1-pwa-kit:apple-design` and so on. All three are MIT-licensed third-party skills - see `plugins/ph1-pwa-kit/THIRD_PARTY_NOTICES.md` for sources and the small changes made.
+They appear as `/ph1-pwa-kit:apple-design` and so on. `apple-design`, `web-design-engineer` and `landing-page-design` are MIT-licensed third-party skills; `app-ui-craft` is distilled from the first two - see `plugins/ph1-pwa-kit/THIRD_PARTY_NOTICES.md` for sources and the small changes made.
 
 If the same skills are also installed in your personal skills folder, both copies load. Remove the personal copies to avoid duplicates.
 

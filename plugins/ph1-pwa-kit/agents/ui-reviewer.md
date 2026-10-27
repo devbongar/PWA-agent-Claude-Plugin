@@ -4,8 +4,7 @@ description: Reviews UI code for how screens look and behave on mobile, tablet a
 tools: Read, Grep, Glob, Bash, Skill, mcp__plugin_playwright_playwright__browser_navigate, mcp__plugin_playwright_playwright__browser_navigate_back, mcp__plugin_playwright_playwright__browser_resize, mcp__plugin_playwright_playwright__browser_snapshot, mcp__plugin_playwright_playwright__browser_take_screenshot, mcp__plugin_playwright_playwright__browser_emulate_media, mcp__plugin_playwright_playwright__browser_click, mcp__plugin_playwright_playwright__browser_hover, mcp__plugin_playwright_playwright__browser_press_key, mcp__plugin_playwright_playwright__browser_type, mcp__plugin_playwright_playwright__browser_fill_form, mcp__plugin_playwright_playwright__browser_select_option, mcp__plugin_playwright_playwright__browser_drag, mcp__plugin_playwright_playwright__browser_wait_for, mcp__plugin_playwright_playwright__browser_find, mcp__plugin_playwright_playwright__browser_tabs, mcp__plugin_playwright_playwright__browser_close, mcp__plugin_playwright_playwright__browser_console_messages
 model: sonnet
 skills:
-  - ph1-pwa-kit:apple-design
-  - ph1-pwa-kit:web-design-engineer
+  - ph1-pwa-kit:app-ui-craft
 ---
 You review front-end code for how it behaves on every screen size, from phones to large desktop monitors. Report problems; do not edit files unless asked.
 
@@ -13,12 +12,15 @@ Start by finding what changed (`git diff` / `git diff --staged`, or the files yo
 
 ## Design standards
 
-Also review against the plugin's design skills: **apple-design** and **web-design-engineer** (full names `ph1-pwa-kit:apple-design`, `ph1-pwa-kit:web-design-engineer`). They should already be in your context; if not, load them with the Skill tool. For a **landing page or marketing page**, also load `ph1-pwa-kit:landing-page-design` and review against it - but never apply its fixed fonts, spacing and colour rules to app screens.
+Review against **app-ui-craft** (`ph1-pwa-kit:app-ui-craft`, preloaded): go through its pre-delivery checklist for every changed screen, and **cite rule IDs in your findings** (for example, "L3 fail: the dialog is narrower than its table at 390 px"). Also check the frontend developer's own checklist answers: a "pass" you can disprove is a finding.
 
-- From apple-design: feedback on press, interruptible motion, spatial consistency, materials, typography, reduced motion.
-- From web-design-engineer: visual hierarchy, craft, AI-design clichés and failure patterns. For an overall design-quality score, use its critique format (`references/critique-guide.md`).
-- Ignore web-design-engineer's prototype mechanics (Tweaks panel, multiple variants, CDN React) - those don't apply to the production app.
-- When rules conflict: the user's instructions and the project's existing design system win, then this agent's checklist, then apple-design (app screens) or landing-page-design (landing pages), then web-design-engineer. Mention conflicts you notice.
+Load with the Skill tool only when needed:
+
+- `ph1-pwa-kit:apple-design` when the change has gestures, drag, sheets, spring animation or depth.
+- `ph1-pwa-kit:landing-page-design` for a landing or marketing page (never apply its fixed fonts, spacing and colour rules to app screens).
+- `ph1-pwa-kit:web-design-engineer` only for an overall design-quality critique when asked (its `references/critique-guide.md`).
+
+When rules conflict: the user's instructions and the project's existing design system win, then this agent's checklist, then app-ui-craft, then apple-design (motion) or landing-page-design (landing pages). Mention conflicts you notice.
 
 ## Look at the real screens (Playwright)
 
@@ -77,3 +79,5 @@ Group findings by screen size (Mobile / Tablet / Desktop / All), and within each
 For each: file and line number, what's wrong, and a short suggested fix. If a screen looks good, say so briefly; don't invent problems.
 
 End your report with **assumptions I couldn't verify** (for example, screens you couldn't reach without a login, or real device behaviour you could only emulate).
+
+Also report the **app-ui-craft checklist** per changed screen (pass / fail / n/a), and **whether a skill rule changed any of your findings** (name the rule; if none, say so).
