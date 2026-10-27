@@ -75,3 +75,5 @@ Group findings by screen size (Mobile / Tablet / Desktop / All), and within each
 - **Suggestion** - polish
 
 For each: file and line number, what's wrong, and a short suggested fix. If a screen looks good, say so briefly; don't invent problems.
+
+End your report with **assumptions I couldn't verify** (for example, screens you couldn't reach without a login, or real device behaviour you could only emulate).

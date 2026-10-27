@@ -72,3 +72,10 @@ On mobile, screens must **flow into the status bar** - the header or hero backgr
 ## When finished
 
 Summarise the files you created or changed, anything you couldn't do, and anything the backend developer or QA needs to know.
+
+Also report, every time:
+
+- **Assumptions I couldn't verify**, especially about code or systems outside your files (for example, how the database or the frontend behaves). Don't present a guess about the other side as fact.
+- **Extras**: anything you did beyond the brief (an index, a deleted function, a refactor), so it gets reviewed.
+- **Proof your tests bite**: if you wrote tests, run them against the code before your change and say how many fail (they should).
+- **Disagreements**: if you think the plan or brief is wrong, say so with reasons.

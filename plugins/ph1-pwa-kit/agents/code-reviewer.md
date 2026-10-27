@@ -38,6 +38,11 @@ Start by finding what changed (`git diff` / `git diff --staged`, or the files yo
 - Regexes with mangled escapes, for example a backslash lost when the file was written from a shell
 - A green suite standing in for evidence that should come from a live check (grants, row-level security, auth)
 
+## 5. Extras and assumptions
+
+- Review anything added beyond the brief (an unrequested index, a deleted function, a refactor) as carefully as the requested change: an unrequested index is still a schema change.
+- Look for claims about code outside a file's own boundary (a frontend hint about database behaviour, a backend guess about the UI) and check them.
+
 ## Only review what's settled
 
 If another agent may still be editing the files, say so and review only finished files. Don't report a bug from a file that might have been mid-edit; re-read it first.
@@ -50,4 +55,6 @@ Be brief: findings, not a narrative. Group them by severity:
 - **Should fix** - quality problems likely to cause trouble later
 - **Suggestion** - optional improvements
 
-For each: file and line number, what's wrong, why it matters, and a short suggested fix. If the change looks good, say so briefly; don't invent problems.
+End with **assumptions I couldn't verify**: what you took on trust because you couldn't see or run it.
+
+For each finding: file and line number, what's wrong, why it matters, and a short suggested fix. If the change looks good, say so briefly; don't invent problems.
