@@ -7,3 +7,7 @@ A live pixel-art office for your Claude Code agents. Each ph1-pwa-kit agent has 
 - Needs Claude Code 2.1.299 or later.
 
 Characters: Frontend (blue, headphones), Backend (green hoodie), QA (orange, cap), Code Review (purple, glasses), UI Review (pink, beret), Lead (navy, red tie).
+
+## Brain beneath the office
+
+If the ph1-brain plugin is installed, the office pane also shows the brain underneath: a **Library / Knowledge map** switch and the selected view. It reads what ph1-brain shares in `~/.claude/ph1-brain/view.json` (updated within about 10 seconds). Without ph1-brain the section doesn't appear.

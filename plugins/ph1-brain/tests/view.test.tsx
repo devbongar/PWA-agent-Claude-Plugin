@@ -84,6 +84,10 @@ test('the Library and the Knowledge map draw the wiki, with a switch between the
   await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
   await clock.advance(2000)
 
+  // Shared for the Agent office pane.
+  const shared = JSON.parse(fs.get(`${HOME}/.claude/ph1-brain/view.json`)?.text ?? '{}') as { pages?: unknown[] }
+  expect(shared.pages?.length).toBe(5)
+
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
   expect(await ui.find({ type: 'Button', text: 'Library' })).toBeDefined()
   const lib = String((await ui.find({ type: 'Svg' }))?.props.source)

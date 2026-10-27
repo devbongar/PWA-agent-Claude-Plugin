@@ -1,6 +1,6 @@
 {
   "name": "ph1-brain",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Ph1 company second brain: drop anything into raw/, a librarian agent builds a linked wiki every Claude session can use",
   "author": {
     "name": "Ph1world Design and Construction"

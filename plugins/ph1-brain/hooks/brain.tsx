@@ -213,6 +213,19 @@ const modeAtom = atom({ plugin: 'ph1-brain', key: 'mode' } as const, 'library' a
 const pageCache = new Map<string, { mtime: number; title: string; targets: string[] }>()
 let viewTicker: Timer | undefined
 let refreshing = false
+let lastShared = ''
+
+// The snapshot is also shared as a file, so the Agent office pane (ph1-office) can show the
+// brain beneath the office. Only written when it changes.
+async function shareSnapshot($: EngineInterface, snap: BrainSnapshot): Promise<void> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  if (!home) return
+  const { at: _at, ...rest } = snap
+  const text = JSON.stringify(rest)
+  if (text === lastShared) return
+  lastShared = text
+  await $.fs.write(`${home.replace(/\\/g, '/').replace(/\/$/, '')}/.claude/ph1-brain/view.json`, JSON.stringify(snap))
+}
 
 async function listWiki($: EngineInterface, dir: string, rel = '', depth = 0, out: { rel: string; mtime: number }[] = []) {
   if (depth > 5 || out.length >= MAX_PAGES) return out
@@ -262,6 +275,7 @@ async function refreshView($: EngineInterface): Promise<void> {
       at: Date.now(),
     }
     await update($, snapshotAtom, () => snap)
+    await shareSnapshot($, snap).catch(() => undefined)
   } finally {
     refreshing = false
   }

@@ -36,7 +36,7 @@ If the **Playwright** plugin is installed, `ui-reviewer` takes real screenshots 
 
 ## ph1-office
 
-A live pixel-art office pane. Each agent walks from the lounge to its desk when it starts working, shows what it's doing in a speech bubble, and walks back when it's done. Reopen it with `/ph1-office:open`. Needs Claude Code 2.1.299 or later.
+A live pixel-art office pane. Each agent walks from the lounge to its desk when it starts working, shows what it's doing in a speech bubble, and walks back when it's done. Reopen it with `/ph1-office:open`. With ph1-brain installed, the brain (Library / Knowledge map) shows beneath the office. Needs Claude Code 2.1.299 or later.
 
 One-click install in VS Code:
 

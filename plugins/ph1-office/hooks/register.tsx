@@ -1,7 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
-import type { LeadState, LimitsState, OfficeAgent } from '../types'
+import type { BrainMode, BrainSnapshot, BrainState, LeadState, LimitsState, OfficeAgent } from '../types'
+import { librarySvg, mapSvg, summaryLine } from './brain-view'
 import { limitsSvg, line, statusLine } from './limits'
 import { activityFor, formatElapsed, officeSvg, roleFor, roleIndex } from './office'
 
@@ -22,6 +23,29 @@ async function saveLimits($: EngineInterface, readings: LimitsState['readings'])
 }
 
 let limitsTicker: Timer | undefined
+
+// The brain beneath the office: read from the file ph1-brain shares. No ph1-brain, no section.
+const brainAtom = atom({ plugin: 'ph1-office', key: 'brain' } as const, {} as BrainState, { shape: 'brain-1' })
+const brainModeAtom = atom({ plugin: 'ph1-office', key: 'brainMode' } as const, 'library' as BrainMode, { shape: 'brainMode-1' })
+let brainTicker: Timer | undefined
+let brainText = ''
+
+async function loadBrain($: EngineInterface): Promise<void> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  if (!home) return
+  const path = `${home.replace(/\\/g, '/').replace(/\/$/, '')}/.claude/ph1-brain/view.json`
+  const text = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
+  if (text === brainText) return
+  brainText = text
+  let snap: BrainSnapshot | undefined
+  try {
+    const parsed = text ? (JSON.parse(text) as BrainSnapshot) : undefined
+    snap = parsed && Array.isArray(parsed.pages) ? parsed : undefined
+  } catch {
+    snap = undefined
+  }
+  await update($, brainAtom, () => (snap ? { snap } : {}))
+}
 
 const MAX_KEPT = 30
 
@@ -78,6 +102,14 @@ export const register: Register = on => {
         read($, limitsAtom)
           .then(l => saveLimits($, l.readings))
           .catch(() => undefined)
+      })
+    }
+    if (!brainTicker) {
+      brainTicker = $.clock.every(10_000, () => {
+        loadBrain($).catch(() => undefined)
+      })
+      $.clock.after(2000, () => {
+        loadBrain($).catch(() => undefined)
       })
     }
     return result
@@ -161,6 +193,8 @@ export const register: Register = on => {
     const agents = await read($, agentsAtom)
     const lead = await read($, leadAtom)
     const limits = await read($, limitsAtom)
+    const brain = (await read($, brainAtom)).snap
+    const brainMode = await read($, brainModeAtom)
     const now = Date.now()
     const active = agents.filter(a => a.endedAt === undefined)
     const recent = agents.filter(a => a.endedAt !== undefined).slice(-3).reverse()
@@ -190,7 +224,19 @@ export const register: Register = on => {
       </Box>
     )
 
-    if (e.surface === 'terminal') return rows
+    if (e.surface === 'terminal') {
+      return (
+        <Box flexDirection="column">
+          {rows}
+          {brain && <Text dimColor>{`Brain: ${summaryLine(brain, now)}`}</Text>}
+        </Box>
+      )
+    }
+
+    const { Button } = ui
+    const setBrainMode = (m: BrainMode) => () => {
+      void update($, brainModeAtom, () => m)
+    }
 
     const { Svg } = $.ui.resolve(e)
     return (
@@ -205,6 +251,21 @@ export const register: Register = on => {
           isInteractive
         />
         {rows}
+        {brain && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Brain</Text>
+            <Box flexDirection="row" gap={1}>
+              <Button key="brain-library" label="Library" variant={brainMode === 'library' ? 'primary' : 'secondary'} onPress={setBrainMode('library')} />
+              <Button key="brain-map" label="Knowledge map" variant={brainMode === 'map' ? 'primary' : 'secondary'} onPress={setBrainMode('map')} />
+            </Box>
+            {brainMode === 'library' ? (
+              <Svg source={librarySvg(brain, now)} alt={`Brain library: ${summaryLine(brain, now)}`} isInteractive />
+            ) : (
+              <Svg source={mapSvg(brain, now)} alt={`Brain knowledge map: ${brain.pages.length} pages`} isInteractive />
+            )}
+            <Text dimColor>{summaryLine(brain, now)}</Text>
+          </Box>
+        )}
       </Box>
     )
   })

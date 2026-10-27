@@ -194,3 +194,44 @@ test('the 5-hour and weekly limits show as gauges and in the status bar', async 
   expect((await term.find({ type: 'Text', text: /5-hour limit/ }))?.text).toContain('42% used')
   await term.unmount()
 })
+
+test('the brain shows beneath the office when ph1-brain shares it, with a Library / Knowledge map switch', async ($, on) => {
+  engine(on)
+  const clock = mock.clock(on)
+  const files = new Map<string, string>()
+  on('env.get', (_: unknown, e: { name: string }) => ({ value: e.name === 'HOME' ? '/home/tester' : undefined }))
+  on('fs.exists', (_: unknown, e: { path: string }) => ({ value: files.has(e.path) }))
+  on('fs.read', (_: unknown, e: { path: string }) => ({ value: files.get(e.path) ?? '' }))
+  on('session.usage', () => ({ value: { rateLimits: [] } as never }))
+  on('ui.status', () => ({ value: undefined }))
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await clock.advance(2500)
+
+  // No brain shared: no Brain section.
+  const before = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  expect(await before.find({ type: 'Button', text: 'Library' })).toBeUndefined()
+  await before.unmount()
+
+  files.set('/home/tester/.claude/ph1-brain/view.json', JSON.stringify({
+    pages: [
+      { id: 'clients/acme', s: 'clients', t: 'Acme Corp', l: [1], m: 1 },
+      { id: 'projects/site', s: 'projects', t: 'Site Reports app', l: [0], m: 1 },
+    ],
+    waiting: 3, questions: ['Budget cap?'], librarian: { running: true, count: 3 }, at: 1,
+  }))
+  await clock.advance(10_000)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  expect(await ui.find({ type: 'Button', text: 'Library' })).toBeDefined()
+  const svgs = await ui.findAll({ type: 'Svg' })
+  expect(String(svgs.at(-1)?.props.source)).toContain('CLIENTS 1')
+  expect(String(svgs.at(-1)?.props.source)).toContain('filing 3 notes')
+  await ui.press({ key: 'brain-map' })
+  await clock.settle()
+  expect(String((await ui.findAll({ type: 'Svg' })).at(-1)?.props.source)).toContain('Site Reports app (projects')
+  await ui.unmount()
+
+  const term = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await term.find({ type: 'Text', text: /^Brain:/ }))?.text).toContain('2 pages')
+  await term.unmount()
+})
