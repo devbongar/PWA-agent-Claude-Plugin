@@ -20,9 +20,19 @@ A company-wide second brain for Claude, in two folders:
 
 ## Commands
 
+- `/ph1-brain:view` - open the Brain pane (Library and Knowledge map, with a switch)
 - `/ph1-brain:status` - where the brain is and what's waiting
 - `/ph1-brain:ingest` - process new raw files now
 - `/ph1-brain:ask <question>` - answer from the wiki, with sources
 - `/ph1-brain:lint` - health check: contradictions, broken links, gaps
+
+## Brain pane
+
+`/ph1-brain:view` opens a pane with two views and a switch at the top:
+
+- **Library** - a pixel-art library: a bookshelf per section (clients, projects, decisions, topics, people) that fills up as pages are added, the raw/ inbox tray with files waiting, a noticeboard (pages, sources, last ingest, open questions), and the librarian, who walks between the inbox and the shelves while ingesting.
+- **Knowledge map** - every wiki page as a dot coloured by section, lines for links, bigger dots for better-connected pages, a pulsing ring on pages new today. Hover a dot for its name. Large wikis show the 80 best-connected pages.
+
+It refreshes every 30 seconds and after each ingest. The terminal shows a one-line summary instead.
 
 Works in VS Code and the Claude desktop app's Code tab. Browse the wiki in any Markdown viewer; Obsidian shows the links as a graph.

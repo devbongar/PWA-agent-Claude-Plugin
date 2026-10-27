@@ -1,1 +1,1 @@
-{ "modules": ["./brain.ts"] }
+{ "modules": ["./brain.tsx"] }

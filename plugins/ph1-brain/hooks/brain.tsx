@@ -1,9 +1,12 @@
 // Second brain: keeps raw/ untouchable, lets every session use the wiki, and has a
 // background librarian agent turn new raw files into linked wiki pages.
+import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-code'
 
+import type { BrainSnapshot, SnapPage, ViewMode } from '../types'
 import { expandHome, ignored, isUnder, newFiles, norm, resolve, touchesRaw } from './paths'
 import type { RawFile } from './paths'
+import { isContentPage, librarySvg, linksOf, mapSvg, questionsOf, resolveLinks, sectionOf, summaryLine, titleOf } from './view'
 
 // The librarian run in progress. Kept in the module (state written while a session is
 // starting doesn't stick); after a reload a finished batch is simply ingested again.
@@ -164,6 +167,7 @@ async function ingest($: EngineInterface, b: Brain, reason: 'auto' | 'command'):
   if (result.deny) return `The librarian could not start: ${result.deny}`
   current = { ...current, running: true, agentId: result.agentId, batch: batch.map(f => `${f.path}\t${f.mtimeMs}`), startedAt: Date.now() }
   $.ui.status(`Brain: librarian ingesting ${batch.length} file(s)`)
+  void refreshView($).catch(() => undefined)
   return `${reason === 'auto' ? 'Found' : 'Ingesting'} ${batch.length} new file(s) in raw/; the librarian is processing them in the background.${
     todo.length > batch.length ? ` ${todo.length - batch.length} more will follow.` : ''
   }`
@@ -188,7 +192,86 @@ async function librarianDone($: EngineInterface, who: { id?: string; type?: stri
   }
   current = { ...current, running: false, agentId: undefined, batch: [], lastRunAt: Date.now() }
   $.ui.status(ok ? undefined : 'Brain: last ingest did not finish; it will retry')
+  await refreshView($).catch(() => undefined)
   if (ok && options['auto_ingest'] !== false) await ingest($, b, 'auto').catch(() => undefined)
+}
+
+
+// ---------- Brain view (Library and Knowledge map) ----------
+
+const VIEW_PANE = 'brain'
+const VIEW_TITLE = 'Brain'
+const VIEW_TOOL = 'mcp__ph1-brain__view'
+const VIEW_EVERY_MS = 30 * 1000
+const MAX_PAGES = 1500
+
+const EMPTY_SNAP: BrainSnapshot = { pages: [], waiting: 0, questions: [], librarian: { running: false, count: 0 }, at: 0 }
+const snapshotAtom = atom({ plugin: 'ph1-brain', key: 'snapshot' } as const, EMPTY_SNAP, { shape: 'snapshot-1' })
+const modeAtom = atom({ plugin: 'ph1-brain', key: 'mode' } as const, 'library' as ViewMode, { shape: 'mode-1' })
+
+// Parsed pages, re-read only when a file's modified time changes.
+const pageCache = new Map<string, { mtime: number; title: string; targets: string[] }>()
+let viewTicker: Timer | undefined
+let refreshing = false
+
+async function listWiki($: EngineInterface, dir: string, rel = '', depth = 0, out: { rel: string; mtime: number }[] = []) {
+  if (depth > 5 || out.length >= MAX_PAGES) return out
+  for (const e of await $.fs.list(dir)) {
+    if (ignored(e.name) || e.name.startsWith('.')) continue
+    const r = rel ? `${rel}/${e.name}` : e.name
+    if (e.kind === 'dir') await listWiki($, `${dir}/${e.name}`, r, depth + 1, out)
+    else if (e.kind === 'file' && isContentPage(r)) out.push({ rel: r, mtime: e.mtimeMs })
+  }
+  return out
+}
+
+async function mtimeOf($: EngineInterface, dir: string, name: string): Promise<number | undefined> {
+  const hit = (await $.fs.list(dir).catch(() => [])).find(e => e.name === name)
+  return hit?.mtimeMs
+}
+
+// Read the wiki and raw/ into a snapshot for the view, and redraw it.
+async function refreshView($: EngineInterface): Promise<void> {
+  if (!brain || refreshing) return
+  refreshing = true
+  try {
+    const b = brain
+    const files = (await $.fs.exists(b.wiki)) ? await listWiki($, b.wiki) : []
+    const seen = new Set<string>()
+    for (const f of files) {
+      seen.add(f.rel)
+      const cached = pageCache.get(f.rel)
+      if (cached && cached.mtime === f.mtime) continue
+      const text = await $.fs.read(`${b.wiki}/${f.rel}`).catch(() => '')
+      pageCache.set(f.rel, { mtime: f.mtime, title: titleOf(f.rel, text), targets: linksOf(text) })
+    }
+    for (const k of [...pageCache.keys()]) if (!seen.has(k)) pageCache.delete(k)
+    const list = files.map(f => ({ rel: f.rel, ...pageCache.get(f.rel)! }))
+    const links = resolveLinks(list.map(p => ({ rel: p.rel, targets: p.targets })))
+    const pages: SnapPage[] = list.map((p, i) => ({ id: p.rel.replace(/\.md$/i, ''), s: sectionOf(p.rel), t: p.title, l: links[i] ?? [], m: p.mtime }))
+    const qText = await $.fs.read(`${b.meta}/questions.md`).catch(() => '')
+    const waiting = (await pending($, b).catch(() => [] as RawFile[])).length
+    const logAt = await mtimeOf($, b.wiki, 'log.md')
+    const lastIngestAt = Math.max(current.lastRunAt, logAt ?? 0) || undefined
+    const snap: BrainSnapshot = {
+      pages,
+      waiting,
+      questions: questionsOf(qText).slice(0, 20),
+      ...(lastIngestAt ? { lastIngestAt } : {}),
+      librarian: { running: current.running, count: current.batch.length },
+      at: Date.now(),
+    }
+    await update($, snapshotAtom, () => snap)
+  } finally {
+    refreshing = false
+  }
+}
+
+function startViewTicker($: EngineInterface): void {
+  if (viewTicker) return
+  viewTicker = $.clock.every(VIEW_EVERY_MS, () => {
+    refreshView($).catch(() => undefined)
+  })
 }
 
 export const register: Register = (on, options) => {
@@ -208,6 +291,11 @@ export const register: Register = (on, options) => {
       name: 'status',
       description: "Show the second brain's location, the librarian's state, and how many raw/ files are waiting to be ingested.",
       isDeferred: false,
+    })
+    await $.tool.register({ name: 'view', description: 'Open the Ph1 Brain pane: the Library and the Knowledge map of the second brain.', isDeferred: false })
+    startViewTicker($)
+    $.clock.after(1500, () => {
+      refreshView($).catch(() => undefined)
     })
 
     const waiting = await pending($, b).catch(() => [] as RawFile[])
@@ -271,9 +359,54 @@ export const register: Register = (on, options) => {
     }
   })
 
+  // /ph1-brain:view asks Claude to call this tool, which opens the pane.
+  on('tool.call', { tool: VIEW_TOOL }, async $ => {
+    void refreshView($).catch(() => undefined)
+    const opened = await $.ui.open({ id: VIEW_PANE, title: VIEW_TITLE })
+    return { result: opened.isPlaced ? 'The Brain pane is open.' : `The Brain pane is waiting for room to open (${opened.reason ?? 'no surface'}).` }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: VIEW_PANE }, async ($, e) => {
+    const ui = $.ui.resolve(e)
+    const { Box, Text, Button } = ui
+    const snap = await read($, snapshotAtom)
+    const mode = await read($, modeAtom)
+    const now = Date.now()
+    const setMode = (m: ViewMode) => () => {
+      void update($, modeAtom, () => m)
+    }
+    const summary = <Text dimColor>{summaryLine(snap, now)}</Text>
+    if (e.surface === 'terminal') {
+      return (
+        <Box flexDirection="column">
+          {summary}
+          {snap.librarian.running && <Text>{`● Librarian filing ${snap.librarian.count} note(s)`}</Text>}
+          {snap.questions.slice(0, 3).map(q => (
+            <Text dimColor>{`? ${q}`}</Text>
+          ))}
+        </Box>
+      )
+    }
+    const { Svg } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="row" gap={1}>
+          <Button key="library" label="Library" variant={mode === 'library' ? 'primary' : 'secondary'} onPress={setMode('library')} />
+          <Button key="map" label="Knowledge map" variant={mode === 'map' ? 'primary' : 'secondary'} onPress={setMode('map')} />
+        </Box>
+        {mode === 'library' ? (
+          <Svg source={librarySvg(snap, now)} alt={`Brain library: ${summaryLine(snap, now)}`} isInteractive />
+        ) : (
+          <Svg source={mapSvg(snap, now)} alt={`Brain knowledge map: ${snap.pages.length} pages`} isInteractive />
+        )}
+        {summary}
+      </Box>
+    )
+  })
+
   // Brain reads and wiki writes are allowed from any project; raw/ writes never.
   on('tool.check', async ($, e, next) => {
-    if (e.tool === INGEST_TOOL || e.tool === STATUS_TOOL) return { decision: 'allow', reason: 'ph1-brain: its own tool' }
+    if (e.tool === INGEST_TOOL || e.tool === STATUS_TOOL || e.tool === VIEW_TOOL) return { decision: 'allow', reason: 'ph1-brain: its own tool' }
     if (!brain) return next(e)
     const input = (e.input ?? {}) as { file_path?: unknown; path?: unknown; notebook_path?: unknown }
     const target = String(input.file_path ?? input.notebook_path ?? input.path ?? '')

@@ -46,7 +46,7 @@ vscode://anthropic.claude-code/install-plugin?plugin=ph1-office&marketplace=devb
 
 ## ph1-brain
 
-A company-wide second brain: drop anything into `raw/`, and a librarian agent builds a linked wiki in `wiki/` that every Claude session (and `/ph1-pwa-kit:new-feature`) uses. raw/ is protected from changes. See `plugins/ph1-brain/README.md`.
+A company-wide second brain: drop anything into `raw/`, and a librarian agent builds a linked wiki in `wiki/` that every Claude session (and `/ph1-pwa-kit:new-feature`) uses. raw/ is protected from changes. `/ph1-brain:view` opens the Brain pane: a pixel-art Library and a Knowledge map, with a switch between them. See `plugins/ph1-brain/README.md`.
 
 One-click install in VS Code:
 
