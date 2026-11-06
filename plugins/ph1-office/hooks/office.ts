@@ -142,12 +142,24 @@ function colorOf(ch: string, role: Role): string | undefined {
 }
 
 const SPRITE_W = 8 * S
-const SPRITE_H = 12 * S
+
+// Standing, sitting seen from behind (at a desk), sitting seen from the front (sofa, lead's desk).
+export type Pose = 'stand' | 'sitBack' | 'sitFront'
+
+function poseRows(role: Role, pose: Pose): string[] {
+  if (pose === 'stand') return spriteRows(role, false)
+  // From behind, the chair hides the legs: head and body only.
+  if (pose === 'sitBack') return spriteRows(role, true).slice(0, 10)
+  // From the front: hands on the lap, shins down to the floor.
+  return [...spriteRows(role, false).slice(0, 8), 'SPPPPPPS', '.PP..PP.', '.BB..BB.']
+}
+
+const POSE_H: Record<Pose, number> = { stand: 12 * S, sitBack: 10 * S, sitFront: 11 * S }
 
 // One sprite as SVG rects, horizontal runs merged. Origin is its top-left.
-export function sprite(role: Role, back = false): string {
+export function sprite(role: Role, pose: Pose = 'stand'): string {
   const out: string[] = []
-  spriteRows(role, back).forEach((row, y) => {
+  poseRows(role, pose).forEach((row, y) => {
     let x = 0
     while (x < row.length) {
       const fill = colorOf(row[x]!, role)
@@ -226,36 +238,47 @@ function plate(p: Pt, text: string, color: string): string {
     `<text x="${p.x.toFixed(1)}" y="${(p.y + 2).toFixed(1)}" font-family="monospace" font-size="7.5" font-weight="bold" text-anchor="middle" fill="#ffffff">${esc(text)}</text></g>`
 }
 
-// Where a sprite stands (top-left) so its feet are on the floor point.
-const standAt = (u: number, v: number): Pt => {
+// A point on the floor, in screen pixels: where a character's feet are.
+const foot = (u: number, v: number): Pt => {
   const p = iso(u, v)
-  return { x: Math.round(p.x - SPRITE_W / 2), y: Math.round(p.y - SPRITE_H + 1) }
+  return { x: Math.round(p.x), y: Math.round(p.y) }
 }
 
 // Workstations along the long wall: five team seats, then two hot desks near the door.
 export const TEAM_V = [1.3, 3.05, 4.8, 6.55, 8.3]
 export const HOT_V = [10.2, 11.95]
 const CHAIR_U = 2.1
-const seatAt = (v: number): Pt => {
-  const p = standAt(CHAIR_U - 0.15, v)
-  return { x: p.x, y: p.y - 3 }
-}
+const DESK_SEAT_Z = 11
+const seatAt = (v: number): Pt => foot(CHAIR_U, v)
 
-// Lounge spots: three on the sofa, the rest standing around the coffee table.
-export const LOUNGE: Pt[] = [
-  standAt(8.15, 8.4),
-  standAt(8.15, 9.6),
-  standAt(8.15, 10.8),
-  standAt(5.6, 8.0),
-  standAt(5.4, 10.4),
-  standAt(6.4, 12.1),
-  standAt(5.0, 9.2),
+// Lounge spots: three on the sofa, two standing by the coffee table, two spare.
+type Spot = { at: Pt; pose: Pose; lift: number }
+// The sofa faces into the room, away from us: people on it are seen from behind, over the backrest.
+const SOFA_Z = 9
+export const LOUNGE: Spot[] = [
+  { at: foot(8.25, 8.75), pose: 'sitBack', lift: SOFA_Z },
+  { at: foot(8.25, 9.85), pose: 'sitBack', lift: SOFA_Z },
+  { at: foot(8.25, 10.95), pose: 'sitBack', lift: SOFA_Z },
+  { at: foot(5.7, 8.3), pose: 'stand', lift: 0 },
+  { at: foot(5.5, 10.7), pose: 'stand', lift: 0 },
+  { at: foot(6.4, 12.1), pose: 'stand', lift: 0 },
+  { at: foot(5.0, 9.4), pose: 'stand', lift: 0 },
 ]
-const DOOR: Pt = standAt(3.9, 13.6)
-const LEAD_SEAT: Pt = (() => {
-  const p = standAt(7.45, 1.55)
-  return { x: p.x, y: p.y - 2 }
-})()
+
+// What each lounge spot does while idle: two on the sofa chat, one plays a game, one has a coffee, one is on the phone.
+type IdleAct = { prop?: 'console' | 'mug' | 'phone'; say?: string; delay: number }
+const IDLE: IdleAct[] = [
+  { say: 'haha!', delay: 0 },
+  { say: 'right?', delay: 3 },
+  { prop: 'console', say: 'gaming', delay: 1.5 },
+  { prop: 'mug', say: 'coffee?', delay: 4.5 },
+  { prop: 'phone', say: 'lol', delay: 2.2 },
+  { prop: 'mug', delay: 0 },
+  { prop: 'phone', delay: 0 },
+]
+
+const DOOR: Pt = foot(3.9, 13.6)
+const LEAD_SEAT: Pt = foot(7.45, 1.55)
 
 function workstation(v: number, on: boolean): string {
   const v0 = v - 0.55
@@ -278,15 +301,15 @@ function workstation(v: number, on: boolean): string {
   )
 }
 
-function officeChair(u: number, v: number, back: 'wall' | 'viewer', color = '#6b7280'): string {
+function officeChair(u: number, v: number, back: 'wall' | 'viewer', color = '#6b7280'): { seat: string; rest: string } {
   const base = ellipseAt(u, v, 1, 7, 3.2, '#111827', ' opacity="0.55"')
   const post = line([u, v, 1], [u, v, 9], '#374151', 2)
   const seat = box(u - 0.32, v - 0.32, u + 0.32, v + 0.32, 9, 11, color, '#4b5563', '#374151')
-  // Backrest: on the side away from the desk.
-  const br = back === 'viewer'
-    ? box(u + 0.25, v - 0.3, u + 0.38, v + 0.3, 11, 24, color, '#4b5563', '#374151')
-    : box(u - 0.4, v - 0.3, u - 0.27, v + 0.3, 11, 26, color, '#4b5563', '#374151')
-  return base + post + seat + br
+  // Backrest: on the side away from the desk. Toward the viewer it is low, so a seated person shows above it.
+  const rest = back === 'viewer'
+    ? box(u + 0.25, v - 0.3, u + 0.38, v + 0.3, 11, 21, color, '#4b5563', '#374151')
+    : box(u - 0.4, v - 0.3, u - 0.27, v + 0.3, 11, 28, color, '#4b5563', '#374151')
+  return back === 'viewer' ? { seat: base + post + seat, rest } : { seat: base + post + rest + seat, rest: '' }
 }
 
 function room(): string {
@@ -395,13 +418,22 @@ function lounge(): string {
     ellipseAt(8.35, 6.55, 18, 9, 7, '#15803d') +
     ellipseAt(8.2, 6.7, 23, 6, 5, '#22c55e') +
     ellipseAt(8.5, 6.4, 24, 5, 4, '#16a34a') +
-    // sofa along the right wall
+    // sofa along the right wall (its seat and far armrest; the rest is drawn after the people on it)
     box(8.0, 7.7, 8.85, 11.9, 0, 9, sofaTop, sofaL, sofaR) +
-    box(8.55, 7.7, 8.95, 11.9, 9, 18, sofaTop, sofaL, sofaR) +
-    box(7.95, 7.55, 8.95, 7.85, 0, 13, sofaTop, sofaL, sofaR) +
-    box(7.95, 11.75, 8.95, 12.05, 0, 13, sofaTop, sofaL, sofaR) +
-    box(8.4, 8.0, 8.6, 8.6, 9, 16, '#86efac', '#4ade80', '#22c55e') +
-    box(8.4, 11.0, 8.6, 11.6, 9, 16, '#d1d5db', '#9ca3af', '#6b7280')
+    box(7.95, 7.55, 8.95, 7.85, 0, 13, sofaTop, sofaL, sofaR)
+  )
+}
+
+// The sofa's backrest, cushions and near armrest: in front of anyone sitting on it.
+function sofaFront(): string {
+  const sofaTop = '#f8fafc'
+  const sofaL = '#e2e8f0'
+  const sofaR = '#cbd5e1'
+  return (
+    box(8.55, 7.7, 8.95, 11.9, 9, 14, sofaTop, sofaL, sofaR) +
+    box(8.38, 7.9, 8.55, 8.3, 9, 13, '#86efac', '#4ade80', '#22c55e') +
+    box(8.38, 11.3, 8.55, 11.7, 9, 13, '#d1d5db', '#9ca3af', '#6b7280') +
+    box(7.95, 11.75, 8.95, 12.05, 0, 13, sofaTop, sofaL, sofaR)
   )
 }
 
@@ -431,30 +463,63 @@ function frontWalls(): string {
 }
 
 type Move = { from: Pt; to: Pt; elapsed: number }
+type CharOpts = { mode: 'work' | 'idle'; pose: Pose; lift: number; text?: string; color?: string; act?: IdleAct }
 
-// A character group: walks from→to (continuing mid-walk on a redraw via a negative begin), then types or idles.
-function character(role: Role, move: Move, mode: 'work' | 'idle', text?: string, bubbleColor?: string, back = false): string {
+// Little things in hand, drawn over the sprite (origin: its top-left).
+function prop(kind: IdleAct['prop'], pose: Pose): string {
+  const lap = pose === 'sitFront'
+  switch (kind) {
+    case 'console':
+      return `<g shape-rendering="crispEdges"><rect x="3" y="${lap ? 14 : 15}" width="10" height="4" fill="#1f2937"/>` +
+        `<rect x="6" y="${lap ? 15 : 16}" width="4" height="2" fill="#4ade80"><animate attributeName="fill" values="#4ade80;#facc15;#38bdf8;#4ade80" dur="0.9s" repeatCount="indefinite"/></rect></g>`
+    case 'mug':
+      return `<g shape-rendering="crispEdges"><rect x="14" y="13" width="4" height="5" fill="#f8fafc"/><rect x="14" y="13" width="4" height="1" fill="#78350f"/><rect x="18" y="14" width="1" height="2" fill="#f8fafc"/>` +
+        `<rect x="15" y="10" width="1" height="2" fill="#cbd5e1" opacity="0.8"><animate attributeName="y" values="11;8;11" dur="1.6s" repeatCount="indefinite"/></rect></g>`
+    case 'phone':
+      return `<g shape-rendering="crispEdges"><rect x="12" y="11" width="3" height="5" fill="#111827"/>` +
+        `<rect x="12.5" y="11.5" width="2" height="3.5" fill="#60a5fa"><animate attributeName="opacity" values="1;0.6;1" dur="1.4s" repeatCount="indefinite"/></rect></g>`
+    default:
+      return ''
+  }
+}
+
+// A chat line that comes and goes, so the lounge isn't covered in bubbles.
+function chat(text: string, delay: number): string {
+  return `<g opacity="0"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.04;0.38;0.42;1" dur="6s" begin="${delay}s" repeatCount="indefinite"/>${bubble(text, '#f1f5f9')}</g>`
+}
+
+// A character: walks from→to (continuing mid-walk on a redraw via a negative begin), then sits or stands
+// in its pose. Positions are foot points; the walk shows a standing sprite, swapped for the pose on arrival.
+function character(role: Role, move: Move, o: CharOpts): string {
   const { from, to, elapsed } = move
   const walking = elapsed < WALK_MS && (from.x !== to.x || from.y !== to.y)
   const t = (elapsed / 1000).toFixed(2)
+  const arrive = ((WALK_MS - elapsed) / 1000).toFixed(2)
   const pos = walking ? from : to
   const walkAnim = walking
     ? `<animateTransform attributeName="transform" type="translate" from="${from.x} ${from.y}" to="${to.x} ${to.y}" dur="${WALK_MS / 1000}s" begin="-${t}s" fill="freeze"/>`
     : ''
   const bob = walking
     ? `<animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="0.32s" begin="-${t}s" repeatCount="5"/>`
-    : mode === 'work'
-      ? `<animateTransform attributeName="transform" type="translate" values="0 0;0 -1;0 0" dur="0.5s" begin="${Math.max(0, (WALK_MS - elapsed) / 1000).toFixed(2)}s" repeatCount="indefinite"/>`
+    : o.mode === 'work'
+      ? `<animateTransform attributeName="transform" type="translate" values="0 0;0 -1;0 0" dur="0.5s" repeatCount="indefinite"/>`
       : ''
-  const shadow = `<ellipse cx="${SPRITE_W / 2}" cy="${SPRITE_H - 1}" rx="7" ry="2.5" fill="#000" opacity="0.18"/>`
-  // While walking the bubble is hidden, and shows itself on arrival with no redraw needed.
-  const talk = !text
+  const dx = -SPRITE_W / 2
+  const top = -(POSE_H[o.pose] + o.lift)
+  const shadow = o.pose === 'stand' || walking ? `<ellipse cx="0" cy="-1" rx="7" ry="2.5" fill="#000" opacity="0.18"/>` : ''
+  // Seen from behind, whatever is in their hands is hidden.
+  const held = o.pose === 'sitBack' ? '' : prop(o.act?.prop, o.pose)
+  const posed = `<g transform="translate(${dx} ${top})">${sprite(role, o.pose)}${held}</g>`
+  const standing = `<g transform="translate(${dx} ${-POSE_H.stand})">${sprite(role, 'stand')}</g>`
+  const body = walking
+    ? `<g>${standing}<set attributeName="visibility" to="hidden" begin="${arrive}s" fill="freeze"/></g>` +
+      `<g visibility="hidden"><set attributeName="visibility" to="visible" begin="${arrive}s" fill="freeze"/>${posed}</g>`
+    : posed
+  // The speech bubble sits above the head in the final pose.
+  const say = o.text ? bubble(o.text, o.color) : o.act?.say ? chat(o.act.say, o.act.delay) : ''
+  const talk = !say
     ? ''
-    : walking
-      ? `<g visibility="hidden"><set attributeName="visibility" to="visible" begin="${((WALK_MS - elapsed) / 1000).toFixed(2)}s" fill="freeze"/>${bubble(text, bubbleColor)}</g>`
-      : bubble(text, bubbleColor)
-  // Walking characters face the viewer; they turn to the desk once seated.
-  const body = walking ? sprite(role) : sprite(role, back)
+    : `<g transform="translate(${dx} ${top})">${walking ? `<g visibility="hidden"><set attributeName="visibility" to="visible" begin="${arrive}s" fill="freeze"/>${say}</g>` : say}</g>`
   return `<g transform="translate(${pos.x} ${pos.y})">${walkAnim}${shadow}<g>${bob}${body}</g>${talk}</g>`
 }
 
@@ -472,34 +537,48 @@ export function officeSvg(agents: OfficeAgent[], leadActivity: string | undefine
   }
 
   const stations: string[] = []
-  const chairs: string[] = []
-  const atDesks: string[] = []
   const plates: string[] = []
-  const inLounge: { y: number; svg: string }[] = []
+  const desks: string[] = [] // per workstation, back to front: seat, seated person, backrest
+  const inLounge: { y: number; svg: string; onSofa: boolean }[] = []
   const walkers: string[] = []
+  const seated = { pose: 'sitBack' as const, lift: DESK_SEAT_Z }
+
+  const station = (v: number, person: string) => {
+    const c = officeChair(CHAIR_U, v, 'viewer')
+    desks.push(c.seat + person + c.rest)
+  }
 
   // Team workstations and their people.
   ROLES.forEach((role, i) => {
     const v = TEAM_V[i]!
     const working = active.find(a => roleIndex(a.type) === i)
     stations.push(workstation(v, !!working))
-    chairs.push(officeChair(CHAIR_U, v, 'viewer'))
     plates.push(plate(iso(0, v, 41), role.label, role.shirtDark))
-    const home = LOUNGE[i]!
+    const spot = LOUNGE[i]!
     const seat = seatAt(v)
     if (working) {
-      const ch = character(role, { from: home, to: seat, elapsed: now - working.startedAt }, 'work', working.activity ?? 'starting', undefined, true)
-      if (now - working.startedAt < WALK_MS) walkers.push(ch)
-      else atDesks.push(ch)
+      const ch = character(role, { from: spot.at, to: seat, elapsed: now - working.startedAt }, { mode: 'work', ...seated, text: working.activity ?? 'starting' })
+      if (now - working.startedAt < WALK_MS) {
+        station(v, '')
+        walkers.push(ch)
+      } else station(v, ch)
       return
     }
+    station(v, '')
     const lastDone = agents
       .filter(a => roleIndex(a.type) === i && a.endedAt !== undefined)
       .sort((a, b) => b.endedAt! - a.endedAt!)[0]
     const sinceDone = lastDone ? now - lastDone.endedAt! : Infinity
-    const ch = character(role, { from: seat, to: home, elapsed: lastDone ? sinceDone : WALK_MS }, 'idle', sinceDone < 20000 ? 'done!' : undefined, '#bbf7d0')
+    const justDone = sinceDone < 20000
+    const ch = character(role, { from: seat, to: spot.at, elapsed: lastDone ? sinceDone : WALK_MS }, {
+      mode: 'idle',
+      pose: spot.pose,
+      lift: spot.lift,
+      ...(justDone ? { text: 'done!', color: '#bbf7d0' } : {}),
+      act: IDLE[i],
+    })
     if (lastDone && sinceDone < WALK_MS) walkers.push(ch)
-    else inLounge.push({ y: home.y, svg: ch })
+    else inLounge.push({ y: spot.at.y, svg: ch, onSofa: spot.pose === 'sitBack' })
   })
 
   // Hot desks for helpers (other agent types, or a second agent of the same role).
@@ -508,30 +587,38 @@ export function officeSvg(agents: OfficeAgent[], leadActivity: string | undefine
     const role = g ? roleFor(g.type) : GUEST
     const short = g ? (g.type.split(':').pop() ?? g.type) : 'Hot desk'
     stations.push(workstation(v, !!g))
-    chairs.push(officeChair(CHAIR_U, v, 'viewer'))
     plates.push(plate(iso(0, v, 41), short.length > 12 ? short.slice(0, 11) + '…' : short, '#475569'))
-    if (g) {
-      const ch = character(role, { from: DOOR, to: seatAt(v), elapsed: now - g.startedAt }, 'work', g.activity ?? 'starting', undefined, true)
-      if (now - g.startedAt < WALK_MS) walkers.push(ch)
-      else atDesks.push(ch)
-    }
+    if (!g) return station(v, '')
+    const ch = character(role, { from: DOOR, to: seatAt(v), elapsed: now - g.startedAt }, { mode: 'work', ...seated, text: g.activity ?? 'starting' })
+    if (now - g.startedAt < WALK_MS) {
+      station(v, '')
+      walkers.push(ch)
+    } else station(v, ch)
   })
   // Finished helpers walk out of the door.
   agents
     .filter(a => a.endedAt !== undefined && now - a.endedAt < WALK_MS && roleIndex(a.type) < 0)
     .slice(0, 2)
     .forEach((a, j) => {
-      walkers.push(`<g opacity="0.9">${character(GUEST, { from: seatAt(HOT_V[j]!), to: DOOR, elapsed: now - a.endedAt! }, 'idle')}</g>`)
+      walkers.push(`<g opacity="0.9">${character(GUEST, { from: seatAt(HOT_V[j]!), to: DOOR, elapsed: now - a.endedAt! }, { mode: 'idle', pose: 'stand', lift: 0 })}</g>`)
     })
 
-  // The lead, in the glass office: always in.
+  // The lead, in the glass office: always in, sitting behind the desk.
+  const leadChair = officeChair(7.6, 1.45, 'wall', '#1f2937')
   const lead =
-    officeChair(7.6, 1.45, 'wall', '#1f2937') +
-    character(LEAD, { from: LEAD_SEAT, to: LEAD_SEAT, elapsed: WALK_MS }, 'work', leadActivity ?? (active.length ? 'managing' : 'ready'))
+    leadChair.seat +
+    character(LEAD, { from: LEAD_SEAT, to: LEAD_SEAT, elapsed: WALK_MS }, {
+      mode: 'work',
+      pose: 'sitFront',
+      lift: 9,
+      text: leadActivity ?? (active.length ? 'managing' : 'ready'),
+    })
   const leadPlate = plate(iso(8.4, 2.65, 7), LEAD.label, LEAD.shirtDark)
 
-  // Lounge: the sofa sitters go after the sofa, the standing ones around the table by depth.
-  const sorted = inLounge.sort((a, b) => a.y - b.y).map(x => x.svg)
+  // Lounge: everyone after the furniture, back to front.
+  const byDepth = inLounge.sort((a, b) => a.y - b.y)
+  const standing = byDepth.filter(x => !x.onSofa).map(x => x.svg)
+  const onSofa = byDepth.filter(x => x.onSofa).map(x => x.svg)
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
@@ -540,18 +627,20 @@ export function officeSvg(agents: OfficeAgent[], leadActivity: string | undefine
     room() +
     stations.join('') +
     plates.join('') +
-    chairs.join('') +
-    atDesks.join('') +
+    desks.join('') +
     glassRoomBack() +
     lead +
     execDesk() +
     glassRoomFront() +
     lounge() +
     coffeeTable() +
-    sorted.join('') +
+    standing.join('') +
+    onSofa.join('') +
+    sofaFront() +
     walkers.join('') +
     frontWalls() +
     leadPlate +
     `</svg>`
   )
+
 }
