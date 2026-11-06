@@ -23,7 +23,7 @@ export const LEAD: Role = { key: 'lead', label: 'Lead (Claude)', shirt: '#1e3a8a
 export const GUEST: Role = { key: 'guest', label: 'Helper', shirt: '#64748b', shirtDark: '#475569', hair: '#3f3f46', acc: 'none', accColor: '#000' }
 
 export const WALK_MS = 1600
-const S = 3 // screen pixels per sprite pixel
+const S = 2 // screen pixels per sprite pixel
 const SKIN = '#f1c27d'
 
 export function roleIndex(type: string): number {
@@ -67,9 +67,10 @@ export function formatElapsed(ms: number): string {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
 }
 
+
 // ---------- sprites ----------
 
-const BASE = [
+const FRONT = [
   '..HHHH..',
   '.HHHHHH.',
   '.HSSSSH.',
@@ -84,15 +85,41 @@ const BASE = [
   '.BB..BB.',
 ]
 
-function spriteRows(role: Role): string[] {
-  const r = [...BASE]
+// Seen from behind (sitting at a wall desk, facing the monitor).
+const BACK = [
+  '..HHHH..',
+  '.HHHHHH.',
+  '.HHHHHH.',
+  '.HHHHHH.',
+  '.HHHHHH.',
+  '..SSSS..',
+  '.CCCCCC.',
+  'CCCCCCCC',
+  'SCCCCCCS',
+  '.CCCCCC.',
+  '.PP..PP.',
+  '.BB..BB.',
+]
+
+function spriteRows(role: Role, back: boolean): string[] {
+  const r = [...(back ? BACK : FRONT)]
   switch (role.acc) {
-    case 'headphones': r[1] = 'AHHHHHHA'; r[2] = 'AHSSSSHA'; r[3] = 'ASESSESA'; break
-    case 'hood': r[0] = '..DDDD..'; r[1] = '.DHHHHD.'; r[2] = 'DHSSSSHD'; r[3] = 'DSESSESD'; break
-    case 'cap': r[0] = '.AAAA...'; r[1] = 'AAAAAAAA'; break
-    case 'glasses': r[3] = '.GEGGEG.'; break
+    case 'headphones':
+      r[1] = 'AHHHHHHA'
+      r[2] = back ? 'AHHHHHHA' : 'AHSSSSHA'
+      r[3] = back ? 'AHHHHHHA' : 'ASESSESA'
+      break
+    case 'hood':
+      if (back) {
+        r[0] = '..DDDD..'; r[1] = '.DDDDDD.'; r[2] = 'DDDDDDDD'; r[3] = 'DDDDDDDD'; r[4] = '.DDDDDD.'
+      } else {
+        r[0] = '..DDDD..'; r[1] = '.DHHHHD.'; r[2] = 'DHSSSSHD'; r[3] = 'DSESSESD'
+      }
+      break
+    case 'cap': r[0] = back ? '..AAAA..' : '.AAAA...'; r[1] = back ? '.AAAAAA.' : 'AAAAAAAA'; break
+    case 'glasses': r[3] = back ? 'GHHHHHHG' : '.GEGGEG.'; break
     case 'beret': r[0] = '.AAAAA..'; r[1] = 'AAAAAAH.'; break
-    case 'tie': r[6] = '.CCTTCC.'; r[7] = 'CCCTTCCC'; r[8] = 'SCCTTCCS'; break
+    case 'tie': if (!back) { r[6] = '.CCTTCC.'; r[7] = 'CCCTTCCC'; r[8] = 'SCCTTCCS' } break
     case 'none': break
   }
   return r
@@ -114,10 +141,13 @@ function colorOf(ch: string, role: Role): string | undefined {
   }
 }
 
+const SPRITE_W = 8 * S
+const SPRITE_H = 12 * S
+
 // One sprite as SVG rects, horizontal runs merged. Origin is its top-left.
-export function sprite(role: Role): string {
+export function sprite(role: Role, back = false): string {
   const out: string[] = []
-  spriteRows(role).forEach((row, y) => {
+  spriteRows(role, back).forEach((row, y) => {
     let x = 0
     while (x < row.length) {
       const fill = colorOf(row[x]!, role)
@@ -127,61 +157,283 @@ export function sprite(role: Role): string {
       x += w
     }
   })
-  return out.join('')
+  return `<g shape-rendering="crispEdges">${out.join('')}</g>`
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 function bubble(text: string, color = '#ffffff'): string {
   const t = text.length > 14 ? text.slice(0, 13) + '…' : text
-  const w = t.length * 5 + 8
-  const x = 12 - w / 2
-  return `<g><rect x="${x}" y="-15" width="${w}" height="11" fill="${color}" stroke="#1f2937" stroke-width="1"/>` +
-    `<rect x="9" y="-4" width="3" height="3" fill="${color}"/>` +
-    `<text x="12" y="-7" font-family="monospace" font-size="8" text-anchor="middle" fill="#111827">${esc(t)}</text></g>`
+  const w = t.length * 5 + 10
+  const cx = SPRITE_W / 2
+  return `<g><rect x="${cx - w / 2}" y="-16" width="${w}" height="12" rx="3" fill="${color}" stroke="#1f2937" stroke-width="1"/>` +
+    `<polygon points="${cx - 3},-4.5 ${cx + 3},-4.5 ${cx},-1" fill="${color}" stroke="#1f2937" stroke-width="1"/>` +
+    `<rect x="${cx - 2.5}" y="-5.5" width="5" height="1.5" fill="${color}"/>` +
+    `<text x="${cx}" y="-7.5" font-family="monospace" font-size="8" text-anchor="middle" fill="#111827">${esc(t)}</text></g>`
 }
 
-// ---------- layout ----------
+// ---------- isometric room ----------
+// Floor coordinates: u runs from the back corner down-right, v from the back corner down-left, z is height.
 
 export const W = 480
-export const H = 340
-const DESK_W = 76
+export const H = 330
+const A = 20 // screen px per unit, horizontally
+const B = 10 // screen px per unit, vertically
+const OX = 280
+const OY = 88
+const RU = 9 // room depth (u)
+const RV = 13 // room length (v)
+const WALL = 70
 
 type Pt = { x: number; y: number }
-const deskAt = (x: number, y: number) => ({ x, y })
-export const TEAM_DESKS: Pt[] = [0, 1, 2, 3, 4].map(i => deskAt(14 + i * 92, 70))
-export const LEAD_DESK: Pt = deskAt(14, 170)
-export const HOT_DESKS: Pt[] = [deskAt(290, 170), deskAt(382, 170)]
-export const LOUNGE: Pt[] = [0, 1, 2, 3, 4, 5, 6].map(i => ({ x: 150 + i * 34, y: 280 }))
-const DOOR: Pt = { x: 452, y: 280 }
 
-const seat = (d: Pt): Pt => ({ x: d.x + 44, y: d.y + 6 })
+export function iso(u: number, v: number, z = 0): Pt {
+  return { x: OX + (u - v) * A, y: OY + (u + v) * B - z }
+}
 
-function desk(d: Pt, label: string, on: boolean, labelColor: string): { back: string; front: string } {
+const pts = (list: [number, number, number?][]) =>
+  list.map(([u, v, z]) => {
+    const p = iso(u, v, z ?? 0)
+    return `${p.x.toFixed(1)},${p.y.toFixed(1)}`
+  }).join(' ')
+
+const poly = (list: [number, number, number?][], fill: string, extra = '') => `<polygon points="${pts(list)}" fill="${fill}"${extra}/>`
+
+function line(a: [number, number, number?], b: [number, number, number?], stroke: string, width = 1, extra = ''): string {
+  const p = iso(a[0], a[1], a[2] ?? 0)
+  const q = iso(b[0], b[1], b[2] ?? 0)
+  return `<line x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${q.x.toFixed(1)}" y2="${q.y.toFixed(1)}" stroke="${stroke}" stroke-width="${width}"${extra}/>`
+}
+
+// A box: top, the face toward the viewer's left (v = v1) and the face toward the viewer's right (u = u1).
+function box(u0: number, v0: number, u1: number, v1: number, z0: number, z1: number, top: string, left: string, right: string): string {
+  return (
+    poly([[u0, v1, z0], [u1, v1, z0], [u1, v1, z1], [u0, v1, z1]], left) +
+    poly([[u1, v0, z0], [u1, v1, z0], [u1, v1, z1], [u1, v0, z1]], right) +
+    poly([[u0, v0, z1], [u1, v0, z1], [u1, v1, z1], [u0, v1, z1]], top)
+  )
+}
+
+function ellipseAt(u: number, v: number, z: number, rx: number, ry: number, fill: string, extra = ''): string {
+  const p = iso(u, v, z)
+  return `<ellipse cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" rx="${rx}" ry="${ry}" fill="${fill}"${extra}/>`
+}
+
+// A small name plate in screen space, centred on a point.
+function plate(p: Pt, text: string, color: string): string {
+  const w = Math.max(36, text.length * 5.2 + 10)
+  return `<g><rect x="${(p.x - w / 2).toFixed(1)}" y="${(p.y - 6).toFixed(1)}" width="${w.toFixed(1)}" height="11" rx="2" fill="${color}" stroke="#0f172a" stroke-width="0.6"/>` +
+    `<text x="${p.x.toFixed(1)}" y="${(p.y + 2).toFixed(1)}" font-family="monospace" font-size="7.5" font-weight="bold" text-anchor="middle" fill="#ffffff">${esc(text)}</text></g>`
+}
+
+// Where a sprite stands (top-left) so its feet are on the floor point.
+const standAt = (u: number, v: number): Pt => {
+  const p = iso(u, v)
+  return { x: Math.round(p.x - SPRITE_W / 2), y: Math.round(p.y - SPRITE_H + 1) }
+}
+
+// Workstations along the long wall: five team seats, then two hot desks near the door.
+export const TEAM_V = [1.3, 3.05, 4.8, 6.55, 8.3]
+export const HOT_V = [10.2, 11.95]
+const CHAIR_U = 2.1
+const seatAt = (v: number): Pt => {
+  const p = standAt(CHAIR_U - 0.15, v)
+  return { x: p.x, y: p.y - 3 }
+}
+
+// Lounge spots: three on the sofa, the rest standing around the coffee table.
+export const LOUNGE: Pt[] = [
+  standAt(8.15, 8.4),
+  standAt(8.15, 9.6),
+  standAt(8.15, 10.8),
+  standAt(5.6, 8.0),
+  standAt(5.4, 10.4),
+  standAt(6.4, 12.1),
+  standAt(5.0, 9.2),
+]
+const DOOR: Pt = standAt(3.9, 13.6)
+const LEAD_SEAT: Pt = (() => {
+  const p = standAt(7.45, 1.55)
+  return { x: p.x, y: p.y - 2 }
+})()
+
+function workstation(v: number, on: boolean): string {
+  const v0 = v - 0.55
+  const v1 = v + 0.55
   const screen = on
-    ? `<rect x="${d.x + 8}" y="${d.y + 12}" width="24" height="16" fill="#38bdf8">` +
-      `<animate attributeName="fill" values="#38bdf8;#7dd3fc;#38bdf8" dur="1.2s" repeatCount="indefinite"/></rect>` +
-      `<rect x="${d.x + 10}" y="${d.y + 15}" width="12" height="2" fill="#0c4a6e"/>` +
-      `<rect x="${d.x + 10}" y="${d.y + 19}" width="18" height="2" fill="#0c4a6e"/>` +
-      `<rect x="${d.x + 10}" y="${d.y + 23}" width="9" height="2" fill="#0c4a6e"/>`
-    : `<rect x="${d.x + 8}" y="${d.y + 12}" width="24" height="16" fill="#1f2937"/>`
-  const back =
-    `<rect x="${d.x + 6}" y="${d.y + 10}" width="28" height="20" fill="#374151"/>` + screen +
-    `<rect x="${d.x + 17}" y="${d.y + 30}" width="6" height="4" fill="#374151"/>` +
-    // chair back
-    `<rect x="${d.x + 42}" y="${d.y + 14}" width="28" height="22" fill="#4b5563"/>`
-  const front =
-    `<rect x="${d.x}" y="${d.y + 34}" width="${DESK_W}" height="8" fill="#a16207"/>` +
-    `<rect x="${d.x + 4}" y="${d.y + 42}" width="${DESK_W - 8}" height="18" fill="#854d0e"/>` +
-    `<rect x="${d.x + 8}" y="${d.y + 64}" width="${DESK_W - 16}" height="11" fill="${labelColor}"/>` +
-    `<text x="${d.x + DESK_W / 2}" y="${d.y + 72}" font-family="monospace" font-size="8" font-weight="bold" text-anchor="middle" fill="#ffffff">${esc(label)}</text>`
-  return { back, front }
+    ? `<animate attributeName="fill" values="#38bdf8;#7dd3fc;#38bdf8" dur="1.2s" repeatCount="indefinite"/>`
+    : ''
+  const lines = on
+    ? [0.35, 0.6, 0.85].map((f, k) => line([0.47, v0 + 0.18, 22 + (3 - k) * 2.6], [0.47, v0 + 0.18 + f * 0.7, 22 + (3 - k) * 2.6], '#0c4a6e', 1.4)).join('')
+    : ''
+  return (
+    // monitor stand, bezel and screen
+    box(0.3, v - 0.08, 0.42, v + 0.08, 16, 21, '#111827', '#1f2937', '#111827') +
+    poly([[0.45, v0, 20], [0.45, v1, 20], [0.45, v1, 36], [0.45, v0, 36]], '#111827') +
+    `<polygon points="${pts([[0.47, v0 + 0.08, 21.5], [0.47, v1 - 0.08, 21.5], [0.47, v1 - 0.08, 34.5], [0.47, v0 + 0.08, 34.5]])}" fill="${on ? '#38bdf8' : '#1e293b'}">${screen}</polygon>` +
+    lines +
+    // keyboard and mouse
+    poly([[0.75, v - 0.42, 16.4], [1.0, v - 0.42, 16.4], [1.0, v + 0.32, 16.4], [0.75, v + 0.32, 16.4]], '#1f2937') +
+    ellipseAt(0.9, v + 0.52, 16.5, 2.2, 1.3, '#1f2937')
+  )
+}
+
+function officeChair(u: number, v: number, back: 'wall' | 'viewer', color = '#6b7280'): string {
+  const base = ellipseAt(u, v, 1, 7, 3.2, '#111827', ' opacity="0.55"')
+  const post = line([u, v, 1], [u, v, 9], '#374151', 2)
+  const seat = box(u - 0.32, v - 0.32, u + 0.32, v + 0.32, 9, 11, color, '#4b5563', '#374151')
+  // Backrest: on the side away from the desk.
+  const br = back === 'viewer'
+    ? box(u + 0.25, v - 0.3, u + 0.38, v + 0.3, 11, 24, color, '#4b5563', '#374151')
+    : box(u - 0.4, v - 0.3, u - 0.27, v + 0.3, 11, 26, color, '#4b5563', '#374151')
+  return base + post + seat + br
+}
+
+function room(): string {
+  const out: string[] = []
+  // Floor: warm wood planks.
+  out.push(poly([[0, 0], [RU, 0], [RU, RV], [0, RV]], '#9a7351'))
+  for (let u = 0.5; u < RU; u += 0.5) out.push(line([u, 0], [u, RV], '#86613f', 0.8))
+  for (let k = 0; k < 26; k++) {
+    const u = (k % 18) * 0.5
+    const v = ((k * 7) % 12) + 0.6
+    out.push(line([u, v], [u + 0.5, v], '#7a5636', 0.8))
+  }
+
+  // Back-left wall (long): white brick splash, dark cabinets above.
+  out.push(poly([[0, 0, 0], [0, RV, 0], [0, RV, WALL], [0, 0, WALL]], '#eceae6'))
+  for (let z = 20; z <= 44; z += 4) out.push(line([0, 0, z], [0, RV, z], '#d6d3cd', 0.6))
+  for (let z = 20, row = 0; z < 44; z += 4, row++) {
+    for (let v = (row % 2) * 0.35; v < RV; v += 0.7) out.push(line([0, v, z], [0, v, z + 4], '#d6d3cd', 0.6))
+  }
+  for (let v = 0.2; v < RV - 0.2; v += 1.05) {
+    out.push(poly([[0.02, v, 48], [0.02, v + 1.0, 48], [0.02, v + 1.0, 69], [0.02, v, 69]], '#4b5059'))
+    out.push(poly([[0.03, v + 0.05, 49], [0.03, v + 0.95, 49], [0.03, v + 0.95, 68], [0.03, v + 0.05, 68]], '#565b64'))
+    out.push(line([0.04, v + 0.85, 52], [0.04, v + 0.85, 56], '#9ca3af', 1.2))
+  }
+  out.push(box(0, 0, 0.55, RV, 46, 48, '#3a3f47', '#2f333a', '#2f333a'))
+
+  // Back-right wall: sign and clock; windows behind the glass office.
+  out.push(poly([[0, 0, 0], [RU, 0, 0], [RU, 0, WALL], [0, 0, WALL]], '#f4f3f0'))
+  const s = iso(0.45, 0, 52)
+  out.push(
+    `<g transform="matrix(1 0.5 0 1 ${s.x.toFixed(1)} ${s.y.toFixed(1)})"><rect x="0" y="-11" width="80" height="16" fill="#1f2937"/>` +
+      `<text x="40" y="0.5" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle" fill="#fbbf24">D&amp;C AI Agents</text></g>`,
+  )
+  const c = iso(4.95, 0, 50)
+  out.push(
+    `<g transform="matrix(1 0.5 0 1 ${c.x.toFixed(1)} ${c.y.toFixed(1)})"><circle cx="0" cy="0" r="7" fill="#ffffff" stroke="#111827" stroke-width="1.5"/>` +
+      `<line x1="0" y1="0" x2="0" y2="-4.5" stroke="#111827" stroke-width="1.2"/><line x1="0" y1="0" x2="3.5" y2="0" stroke="#111827" stroke-width="1.2"/></g>`,
+  )
+  for (const [a, b] of [[5.9, 7.3], [7.5, 8.9]] as const) {
+    out.push(poly([[a, 0, 30], [b, 0, 30], [b, 0, 64], [a, 0, 64]], '#bfdbfe'))
+    out.push(poly([[a + 0.1, 0, 52], [a + 0.55, 0, 52], [a + 0.55, 0, 56], [a + 0.1, 0, 56]], '#ffffff', ' opacity="0.8"'))
+    out.push(`<polygon points="${pts([[a, 0, 30], [b, 0, 30], [b, 0, 64], [a, 0, 64]])}" fill="none" stroke="#1f2937" stroke-width="2"/>`)
+    out.push(line([(a + b) / 2, 0, 30], [(a + b) / 2, 0, 64], '#1f2937', 1.5))
+  }
+  // Wall caps.
+  out.push(line([0, RV, WALL], [0, 0, WALL], '#1f2937', 3), line([0, 0, WALL], [RU, 0, WALL], '#1f2937', 3))
+  out.push(line([0, 0, 0], [0, 0, WALL], '#cfcac2', 1))
+
+  // The long desk counter: walnut top, dark drawers.
+  out.push(box(0, 0.25, 1.35, RV - 0.25, 0, 16, '#6b4a33', '#2b2b2e', '#232326'))
+  out.push(box(0, 0.25, 1.38, RV - 0.25, 14.5, 16, '#7a5439', '#5b3d29', '#5b3d29'))
+  for (let v = 0.25; v < RV - 0.5; v += 1.75) out.push(line([1.36, v, 0], [1.36, v, 14.5], '#3b3b40', 1))
+  return out.join('')
+}
+
+function glassRoomBack(): string {
+  // Partition along u = 5.5 (behind the room's furniture, as seen from here).
+  return (
+    poly([[5.5, 0, 0], [5.5, 5, 0], [5.5, 5, 62], [5.5, 0, 62]], '#cfe3f0', ' opacity="0.28"') +
+    line([5.5, 0, 62], [5.5, 5, 62], '#111827', 2.5) +
+    line([5.5, 2.5, 0], [5.5, 2.5, 62], '#111827', 1.6) +
+    // shelving unit with a vase of flowers
+    box(5.9, 0, 8.9, 0.6, 0, 22, '#3f3f46', '#8a5a36', '#6f4528') +
+    line([6.9, 0.6, 0], [6.9, 0.6, 20], '#5c3a22', 1) +
+    line([7.9, 0.6, 0], [7.9, 0.6, 20], '#5c3a22', 1) +
+    box(8.3, 0.15, 8.5, 0.35, 22, 30, '#e5e7eb', '#e5e7eb', '#cbd5e1') +
+    ellipseAt(8.4, 0.25, 34, 4, 3, '#fb923c') +
+    ellipseAt(8.25, 0.3, 32, 2.5, 2, '#f97316')
+  )
+}
+
+function execDesk(): string {
+  return (
+    box(6.55, 2.2, 8.4, 3.05, 0, 14, '#7a5439', '#5b3d29', '#4a3122') +
+    // laptop
+    poly([[7.1, 2.35, 14.3], [7.6, 2.35, 14.3], [7.6, 2.85, 14.3], [7.1, 2.85, 14.3]], '#e5e7eb') +
+    poly([[7.1, 2.35, 14.3], [7.1, 2.85, 14.3], [7.1, 2.85, 21], [7.1, 2.35, 21]], '#cbd5e1')
+  )
+}
+
+function glassRoomFront(): string {
+  return (
+    // guest chairs in front of the desk
+    box(6.9, 3.5, 7.5, 4.1, 0, 7, '#e5e7eb', '#d1d5db', '#cbd5e1') +
+    box(6.9, 3.95, 7.5, 4.1, 7, 14, '#e5e7eb', '#d1d5db', '#cbd5e1') +
+    // partition along v = 5 with a glass door
+    poly([[5.5, 5, 0], [RU, 5, 0], [RU, 5, 62], [5.5, 5, 62]], '#cfe3f0', ' opacity="0.3"') +
+    line([5.5, 5, 0], [5.5, 5, 62], '#111827', 2.5) +
+    line([5.5, 5, 62], [RU, 5, 62], '#111827', 2.5) +
+    line([6.2, 5, 0], [6.2, 5, 56], '#111827', 1.6) +
+    line([7.4, 5, 0], [7.4, 5, 56], '#111827', 1.6) +
+    line([6.2, 5, 56], [7.4, 5, 56], '#111827', 1.6) +
+    line([7.25, 5, 26], [7.25, 5, 32], '#111827', 2)
+  )
+}
+
+function lounge(): string {
+  const sofaTop = '#f8fafc'
+  const sofaL = '#e2e8f0'
+  const sofaR = '#cbd5e1'
+  return (
+    // rug
+    poly([[5.2, 7.6], [7.9, 7.6], [7.9, 12.2], [5.2, 12.2]], '#d6d3cd', ' opacity="0.55"') +
+    // plant
+    box(8.1, 6.3, 8.6, 6.8, 0, 9, '#57534e', '#78716c', '#57534e') +
+    ellipseAt(8.35, 6.55, 18, 9, 7, '#15803d') +
+    ellipseAt(8.2, 6.7, 23, 6, 5, '#22c55e') +
+    ellipseAt(8.5, 6.4, 24, 5, 4, '#16a34a') +
+    // sofa along the right wall
+    box(8.0, 7.7, 8.85, 11.9, 0, 9, sofaTop, sofaL, sofaR) +
+    box(8.55, 7.7, 8.95, 11.9, 9, 18, sofaTop, sofaL, sofaR) +
+    box(7.95, 7.55, 8.95, 7.85, 0, 13, sofaTop, sofaL, sofaR) +
+    box(7.95, 11.75, 8.95, 12.05, 0, 13, sofaTop, sofaL, sofaR) +
+    box(8.4, 8.0, 8.6, 8.6, 9, 16, '#86efac', '#4ade80', '#22c55e') +
+    box(8.4, 11.0, 8.6, 11.6, 9, 16, '#d1d5db', '#9ca3af', '#6b7280')
+  )
+}
+
+function coffeeTable(): string {
+  return (
+    line([6.6, 9.6, 0], [6.6, 9.6, 9], '#3f3f46', 2) +
+    ellipseAt(6.6, 9.6, 9, 17, 8.5, '#a16207') +
+    ellipseAt(6.6, 9.6, 9.8, 15.5, 7.6, '#c08a4a') +
+    poly([[6.4, 9.3, 10], [6.8, 9.3, 10], [6.8, 9.75, 10], [6.4, 9.75, 10]], '#f8fafc')
+  )
+}
+
+function frontWalls(): string {
+  return (
+    // low white wall on the right
+    box(RU, 0, RU + 0.2, RV, 0, 6, '#9ca3af', '#e5e7eb', '#f3f4f6') +
+    // glass front wall with a door
+    poly([[0, RV, 0], [RU, RV, 0], [RU, RV, 40], [0, RV, 40]], '#cfe3f0', ' opacity="0.22"') +
+    line([0, RV, 40], [RU, RV, 40], '#111827', 2.5) +
+    line([0, RV, 0], [0, RV, 40], '#111827', 2.5) +
+    line([2.9, RV, 0], [2.9, RV, 40], '#111827', 1.6) +
+    line([4.9, RV, 0], [4.9, RV, 40], '#111827', 1.6) +
+    line([3.85, RV, 14], [3.85, RV, 22], '#111827', 1.8) +
+    line([4.0, RV, 14], [4.0, RV, 22], '#111827', 1.8) +
+    line([7.0, RV, 0], [7.0, RV, 40], '#111827', 1.2)
+  )
 }
 
 type Move = { from: Pt; to: Pt; elapsed: number }
 
 // A character group: walks from→to (continuing mid-walk on a redraw via a negative begin), then types or idles.
-function character(role: Role, move: Move, mode: 'work' | 'idle', text?: string, bubbleColor?: string): string {
+function character(role: Role, move: Move, mode: 'work' | 'idle', text?: string, bubbleColor?: string, back = false): string {
   const { from, to, elapsed } = move
   const walking = elapsed < WALK_MS && (from.x !== to.x || from.y !== to.y)
   const t = (elapsed / 1000).toFixed(2)
@@ -190,27 +442,26 @@ function character(role: Role, move: Move, mode: 'work' | 'idle', text?: string,
     ? `<animateTransform attributeName="transform" type="translate" from="${from.x} ${from.y}" to="${to.x} ${to.y}" dur="${WALK_MS / 1000}s" begin="-${t}s" fill="freeze"/>`
     : ''
   const bob = walking
-    ? `<animateTransform attributeName="transform" type="translate" values="0 0;0 -3;0 0" dur="0.32s" begin="-${t}s" repeatCount="5"/>`
+    ? `<animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="0.32s" begin="-${t}s" repeatCount="5"/>`
     : mode === 'work'
       ? `<animateTransform attributeName="transform" type="translate" values="0 0;0 -1;0 0" dur="0.5s" begin="${Math.max(0, (WALK_MS - elapsed) / 1000).toFixed(2)}s" repeatCount="indefinite"/>`
       : ''
+  const shadow = `<ellipse cx="${SPRITE_W / 2}" cy="${SPRITE_H - 1}" rx="7" ry="2.5" fill="#000" opacity="0.18"/>`
   // While walking the bubble is hidden, and shows itself on arrival with no redraw needed.
   const talk = !text
     ? ''
     : walking
       ? `<g visibility="hidden"><set attributeName="visibility" to="visible" begin="${((WALK_MS - elapsed) / 1000).toFixed(2)}s" fill="freeze"/>${bubble(text, bubbleColor)}</g>`
       : bubble(text, bubbleColor)
-  return `<g transform="translate(${pos.x} ${pos.y})">${walkAnim}<g>${bob}${sprite(role)}</g>${talk}</g>`
+  // Walking characters face the viewer; they turn to the desk once seated.
+  const body = walking ? sprite(role) : sprite(role, back)
+  return `<g transform="translate(${pos.x} ${pos.y})">${walkAnim}${shadow}<g>${bob}${body}</g>${talk}</g>`
 }
 
 export type Placed = { role: Role; agent?: OfficeAgent; deskLabel: string }
 
 // Builds the whole office SVG for the agents as they stand at `now`.
 export function officeSvg(agents: OfficeAgent[], leadActivity: string | undefined, now: number): string {
-  const backs: string[] = []
-  const fronts: string[] = []
-  const people: string[] = []
-
   const active = agents.filter(a => a.endedAt === undefined).sort((a, b) => a.startedAt - b.startedAt)
   const usedRole = new Set<number>()
   const guests: OfficeAgent[] = []
@@ -220,77 +471,87 @@ export function officeSvg(agents: OfficeAgent[], leadActivity: string | undefine
     else guests.push(a)
   }
 
-  // Team desks and their people.
+  const stations: string[] = []
+  const chairs: string[] = []
+  const atDesks: string[] = []
+  const plates: string[] = []
+  const inLounge: { y: number; svg: string }[] = []
+  const walkers: string[] = []
+
+  // Team workstations and their people.
   ROLES.forEach((role, i) => {
-    const d = TEAM_DESKS[i]!
+    const v = TEAM_V[i]!
     const working = active.find(a => roleIndex(a.type) === i)
-    const k = desk(d, role.label, !!working, role.shirtDark)
-    backs.push(k.back)
-    fronts.push(k.front)
+    stations.push(workstation(v, !!working))
+    chairs.push(officeChair(CHAIR_U, v, 'viewer'))
+    plates.push(plate(iso(0, v, 41), role.label, role.shirtDark))
     const home = LOUNGE[i]!
+    const seat = seatAt(v)
     if (working) {
-      people.push(character(role, { from: home, to: seat(d), elapsed: now - working.startedAt }, 'work', working.activity ?? 'starting'))
+      const ch = character(role, { from: home, to: seat, elapsed: now - working.startedAt }, 'work', working.activity ?? 'starting', undefined, true)
+      if (now - working.startedAt < WALK_MS) walkers.push(ch)
+      else atDesks.push(ch)
       return
     }
     const lastDone = agents
       .filter(a => roleIndex(a.type) === i && a.endedAt !== undefined)
       .sort((a, b) => b.endedAt! - a.endedAt!)[0]
     const sinceDone = lastDone ? now - lastDone.endedAt! : Infinity
-    people.push(
-      character(role, { from: seat(d), to: home, elapsed: lastDone ? sinceDone : WALK_MS }, 'idle', sinceDone < 20000 ? 'done!' : undefined, '#bbf7d0'),
-    )
+    const ch = character(role, { from: seat, to: home, elapsed: lastDone ? sinceDone : WALK_MS }, 'idle', sinceDone < 20000 ? 'done!' : undefined, '#bbf7d0')
+    if (lastDone && sinceDone < WALK_MS) walkers.push(ch)
+    else inLounge.push({ y: home.y, svg: ch })
   })
 
-  // Lead desk: always occupied.
-  const lk = desk(LEAD_DESK, LEAD.label, true, LEAD.shirtDark)
-  backs.push(lk.back)
-  fronts.push(lk.front)
-  const ls = seat(LEAD_DESK)
-  people.push(character(LEAD, { from: ls, to: ls, elapsed: WALK_MS }, 'work', leadActivity ?? (active.length ? 'managing' : 'ready')))
-
   // Hot desks for helpers (other agent types, or a second agent of the same role).
-  HOT_DESKS.forEach((d, j) => {
+  HOT_V.forEach((v, j) => {
     const g = guests[j]
     const role = g ? roleFor(g.type) : GUEST
     const short = g ? (g.type.split(':').pop() ?? g.type) : 'Hot desk'
-    const k = desk(d, short.length > 12 ? short.slice(0, 11) + '…' : short, !!g, '#475569')
-    backs.push(k.back)
-    fronts.push(k.front)
-    if (g) people.push(character(role, { from: DOOR, to: seat(d), elapsed: now - g.startedAt }, 'work', g.activity ?? 'starting'))
+    stations.push(workstation(v, !!g))
+    chairs.push(officeChair(CHAIR_U, v, 'viewer'))
+    plates.push(plate(iso(0, v, 41), short.length > 12 ? short.slice(0, 11) + '…' : short, '#475569'))
+    if (g) {
+      const ch = character(role, { from: DOOR, to: seatAt(v), elapsed: now - g.startedAt }, 'work', g.activity ?? 'starting', undefined, true)
+      if (now - g.startedAt < WALK_MS) walkers.push(ch)
+      else atDesks.push(ch)
+    }
   })
   // Finished helpers walk out of the door.
   agents
     .filter(a => a.endedAt !== undefined && now - a.endedAt < WALK_MS && roleIndex(a.type) < 0)
     .slice(0, 2)
     .forEach((a, j) => {
-      const d = HOT_DESKS[j]!
-      people.push(`<g opacity="0.9">${character(GUEST, { from: seat(d), to: DOOR, elapsed: now - a.endedAt! }, 'idle')}</g>`)
+      walkers.push(`<g opacity="0.9">${character(GUEST, { from: seatAt(HOT_V[j]!), to: DOOR, elapsed: now - a.endedAt! }, 'idle')}</g>`)
     })
 
-  const floorLines: string[] = []
-  for (let x = 0; x <= W; x += 24) floorLines.push(`<rect x="${x}" y="56" width="1" height="${H - 56}" fill="#b08b5a"/>`)
-  for (let y = 56; y <= H; y += 24) floorLines.push(`<rect x="0" y="${y}" width="${W}" height="1" fill="#b08b5a"/>`)
+  // The lead, in the glass office: always in.
+  const lead =
+    officeChair(7.6, 1.45, 'wall', '#1f2937') +
+    character(LEAD, { from: LEAD_SEAT, to: LEAD_SEAT, elapsed: WALK_MS }, 'work', leadActivity ?? (active.length ? 'managing' : 'ready'))
+  const leadPlate = plate(iso(8.4, 2.65, 7), LEAD.label, LEAD.shirtDark)
 
-  const room =
-    `<rect x="0" y="0" width="${W}" height="${H}" fill="#c9a77a"/>` + floorLines.join('') +
-    // wall
-    `<rect x="0" y="0" width="${W}" height="56" fill="#e7dcc6"/><rect x="0" y="52" width="${W}" height="4" fill="#8b6b43"/>` +
-    // window
-    `<rect x="300" y="8" width="96" height="36" fill="#7c5a36"/><rect x="304" y="12" width="42" height="28" fill="#93c5fd"/><rect x="350" y="12" width="42" height="28" fill="#93c5fd"/>` +
-    `<rect x="308" y="30" width="14" height="6" fill="#ffffff"/><rect x="362" y="18" width="18" height="6" fill="#ffffff"/>` +
-    // sign
-    `<rect x="14" y="12" width="150" height="26" fill="#1f2937"/><text x="89" y="29" font-family="monospace" font-size="11" font-weight="bold" text-anchor="middle" fill="#fbbf24">PH1 PWA STUDIO</text>` +
-    // clock
-    `<rect x="214" y="14" width="24" height="24" fill="#ffffff" stroke="#1f2937" stroke-width="2"/><rect x="225" y="18" width="2" height="9" fill="#1f2937"/><rect x="225" y="25" width="7" height="2" fill="#1f2937"/>` +
-    // plant
-    `<rect x="440" y="22" width="16" height="14" fill="#16a34a"/><rect x="436" y="28" width="8" height="8" fill="#22c55e"/><rect x="452" y="28" width="8" height="8" fill="#22c55e"/><rect x="442" y="36" width="12" height="14" fill="#b45309"/>` +
-    // lounge rug, sofa, coffee machine, door
-    `<rect x="100" y="262" width="300" height="70" fill="#d6c3a1"/><rect x="104" y="266" width="292" height="62" fill="none" stroke="#a8875a" stroke-width="2"/>` +
-    `<rect x="14" y="276" width="70" height="30" fill="#7f1d1d"/><rect x="14" y="268" width="70" height="12" fill="#991b1b"/><rect x="10" y="272" width="8" height="34" fill="#7f1d1d"/><rect x="80" y="272" width="8" height="34" fill="#7f1d1d"/>` +
-    `<text x="49" y="320" font-family="monospace" font-size="8" text-anchor="middle" fill="#3f2a14">LOUNGE</text>` +
-    `<rect x="412" y="262" width="22" height="34" fill="#374151"/><rect x="416" y="268" width="14" height="8" fill="#111827"/><rect x="418" y="284" width="10" height="8" fill="#ffffff"/>` +
-    `<rect x="446" y="246" width="30" height="50" fill="#78350f"/><rect x="468" y="270" width="3" height="4" fill="#fbbf24"/>`
+  // Lounge: the sofa sitters go after the sofa, the standing ones around the table by depth.
+  const sorted = inLounge.sort((a, b) => a.y - b.y).map(x => x.svg)
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges">` +
-    room + backs.join('') + people.join('') + fronts.join('') + `</svg>`
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="#f8fafc"/>` +
+    `<ellipse cx="${iso(RU / 2, RV / 2).x}" cy="${iso(RU, RV).y - 2}" rx="230" ry="16" fill="#0f172a" opacity="0.08"/>` +
+    room() +
+    stations.join('') +
+    plates.join('') +
+    chairs.join('') +
+    atDesks.join('') +
+    glassRoomBack() +
+    lead +
+    execDesk() +
+    glassRoomFront() +
+    lounge() +
+    coffeeTable() +
+    sorted.join('') +
+    walkers.join('') +
+    frontWalls() +
+    leadPlate +
+    `</svg>`
+  )
 }
