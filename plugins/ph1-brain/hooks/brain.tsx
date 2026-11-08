@@ -95,6 +95,43 @@ This folder is the company's second brain. Everything here is plain Markdown.
 - wiki/_meta/questions.md - contradictions or gaps that need the person's answer
 `
 
+const AGENT_LESSONS = `# Agent lessons
+
+What earlier builds taught about working with the Claude agents, across all projects. The project lead reads this before planning and adds to it after each build: one dated line per lesson, with the project.
+
+## Safety
+
+- A mutation harness works on a copy, never on the repo file: restore in a \`finally\`, prove the repo is untouched with checksums and \`git diff\`. A stalled agent once left \`REVOKE SELECT\` in a migration that nearly reached git.
+- After any stall or crash, check \`git diff\` for damage before retrying.
+
+## Briefs
+
+- Specific briefs get bugs; "review this" gets opinions. Say what already broke and what to attack.
+- Telling an agent what already failed changes its behaviour more than any other line.
+- Small, single-area briefs; big prompts correlate with stalls. Retry a stall with a narrower scope.
+- Ask every agent what it assumed and couldn't verify, and what it did beyond the brief.
+
+## Testing
+
+- Green means nothing on its own: deliberately break the code and check something notices.
+- Every text-matching test needs a vacuity guard (the regex matched, stripping stripped); handle CRLF.
+- Run new tests against the pre-change code: they should fail.
+- Live probes (anon access, role states) beat text assertions. Once verified live, stop polishing text tests.
+- Check a mutation run is valid before trusting it: the intended assertion kills the mutant.
+
+## Coordination
+
+- Parallel agents on coupled work cause seam bugs and stale-state false findings; sequence coupled work.
+- Re-check every finding against the current file before acting on it.
+- Agents disagreeing with the plan is valuable; weigh it.
+- Review the extras agents add (an unrequested index is still a schema change).
+- Settle the test-login strategy at plan time.
+
+## Design
+
+- Ambient skills are inert: give design rules a trigger (name the rules before coding) and a check (pre-delivery checklist, "which rule changed a decision").
+`
+
 const README_RAW = `Drop anything here: notes, PDFs, screenshots, briefs, transcripts, exports.
 No need to name or sort files. The librarian turns them into wiki pages automatically.
 Files in this folder are never changed by Claude.
@@ -109,6 +146,7 @@ async function bootstrap($: EngineInterface, b: Brain): Promise<void> {
     [`${b.wiki}/log.md`, '# Log\n\n'],
     [`${b.meta}/processed.json`, '{}\n'],
     [`${b.meta}/questions.md`, '# Open questions\n\n_Contradictions or gaps the librarian needs you to answer._\n'],
+    [`${b.wiki}/topics/agent-lessons.md`, AGENT_LESSONS],
   ]
   for (const [path, text] of files) {
     if (!(await $.fs.exists(path))) await $.fs.write(path, text)

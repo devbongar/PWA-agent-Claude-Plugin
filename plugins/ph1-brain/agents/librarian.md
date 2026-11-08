@@ -23,6 +23,10 @@ You are the librarian of the Ph1world second brain: a folder with `raw/` (origin
 
 Create new sections only when none of these fit, and add them to the index.
 
+## Agent lessons page
+
+`wiki/topics/agent-lessons.md` holds lessons about working with the Claude agents, added by the project lead after each build. Keep it: when a raw source contains such lessons (for example, a pasted retrospective), file them there under the matching heading, one dated line each, merging duplicates. During lint, merge repeated lessons and keep the newest wording; never delete a lesson that is still true.
+
 ## Page conventions
 
 - File names: lowercase-with-dashes, e.g. `projects/site-reports-app.md`, `clients/acme-builders.md`.

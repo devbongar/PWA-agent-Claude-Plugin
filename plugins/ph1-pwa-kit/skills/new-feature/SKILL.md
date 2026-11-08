@@ -26,7 +26,7 @@ When in doubt, choose full. If a quick change turns out to touch anything on the
 The brief is everything. "Review this" gets opinions; "here is what already broke, attack these four things" gets bugs. Every brief to an agent includes:
 
 1. **Scope:** the exact files or area (small: one file or a few related ones).
-2. **What already failed:** earlier bugs, stalls or incidents in this build, and relevant lessons from the second brain. One sentence about a past failure changes an agent's behaviour more than anything else, for example: "A previous agent stalled mid-mutation and left `REVOKE SELECT` in a migration that nearly reached git."
+2. **What already failed:** earlier bugs, stalls or incidents in this build, and the relevant entries from the brain's **agent lessons page** (see Plan). One sentence about a past failure changes an agent's behaviour more than anything else, for example: "A previous agent stalled mid-mutation and left `REVOKE SELECT` in a migration that nearly reached git."
 3. **What to attack:** specific claims to try to break, for example "treat the developer's tests as claims, not coverage" or "attack the guard test first".
 4. **Disprove your own work:** ask it to show its work fails where it should (new tests run against the pre-change code must fail).
 5. **Report back:** besides findings, ask for **what you assumed but couldn't verify** (this finds more problems than asking what it found) and **anything you did beyond the brief**. Keep reports short.
@@ -41,6 +41,7 @@ The agents' default models are set for the full track. For **small or low-risk p
 
 - Read the relevant parts of the codebase so the plan fits the existing structure.
 - **Check the second brain** (if the ph1-brain plugin is installed: your CLAUDE.md has a "Ph1 second brain" section with its path): read its `wiki/index.md`, then the pages for this project and client and any related decisions or topics. Use past decisions, requirements and lessons in the plan, and list the wiki pages you used.
+- **Read the agent lessons page**, `wiki/topics/agent-lessons.md` in the brain: what went wrong or worked in earlier builds, across all projects. Pick the entries that apply to this feature and put them in the matching agents' briefs (for example, a past QA mutation incident goes into the QA brief).
 - Show me:
   - What the feature does, as a list of **acceptance criteria**
   - Frontend work: screens and components, how they look on mobile and desktop, offline behaviour
@@ -117,8 +118,10 @@ First **update the second brain** (see below), then finish with a short summary.
 - Checks skipped as not applicable
 - What QA could not cover and why, as a checklist of manual checks for me
 - **Should fix and Suggestion items**, for me to choose from
-- Which second-brain pages were updated (if a brain is set up)
+- Which second-brain pages were updated, including any new agent lessons (if a brain is set up)
 - Anything left open or needing my decision
+
+**Recording lessons** (if the brain is set up): add what this build taught about working with the agents to `wiki/topics/agent-lessons.md` - what went wrong and the rule that prevents it, what worked, stalls, false findings, briefs that got good results. One dated line per lesson under its heading, with the project name, for example `- 2026-11-08 (site-reports) QA's first mutation run was invalid: a lowercase drive letter broke a file load; check the harness kills the intended mutant first.` Don't repeat a lesson already there: add the new project to it instead. Skip this if nothing new was learned.
 
 **Updating the second brain** (if the ph1-brain plugin is installed: your CLAUDE.md has a "Ph1 second brain" section with its path): create or update the project's page in its `wiki/projects/` folder with what was built, key decisions and why, the acceptance criteria result, lessons learned, and the PR or branch. Link related client, decision and topic pages, add a decision page for any decision that matters later, and add one line to `wiki/log.md`. Never write to its `raw/` folder.
 

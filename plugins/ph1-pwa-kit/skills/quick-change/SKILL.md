@@ -17,7 +17,7 @@ It is **not** quick if it touches the **database or migrations, auth, permission
 In 2 to 4 lines, tell me: what you'll change, which files, and 1 to 3 acceptance criteria. Then go ahead without waiting for my OK, unless something is unclear or there's a real design choice to make (then ask one short question).
 
 - Live testing: on if `.env.test.local` has `E2E_EMAIL` and `E2E_PASSWORD` (check they're set without printing them); otherwise off. Don't ask for a test account on this track.
-- If the second brain is set up and the change relates to a client or project decision, check its wiki page quickly.
+- If the second brain is set up: skim `wiki/topics/agent-lessons.md` for anything that applies (put it in the review and QA briefs), and check the project's wiki page if the change relates to a client or project decision.
 
 ## 2. Build it yourself
 
@@ -51,6 +51,6 @@ Re-check every finding against the current file before acting on it.
 - Should fix / Suggestion items for me to choose
 - Manual checks, if any
 
-If the second brain is set up and the change matters later (a decision, a client request), add a line to the project's wiki page and to `wiki/log.md`. Never write to `raw/`.
+If the second brain is set up and the change matters later (a decision, a client request), add a line to the project's wiki page and to `wiki/log.md`. If review or QA taught a new lesson about working with the agents, add one dated line to `wiki/topics/agent-lessons.md`. Never write to `raw/`.
 
 Do not commit or push unless I ask. The ship gate is on: commits, pushes and PRs are blocked until code-reviewer and qa-engineer have run on the latest changes. Only I can skip it, with `/ph1-pwa-kit:ship-gate skip`.

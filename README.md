@@ -83,3 +83,5 @@ For a private GitHub repo, each person needs access to the repo (signed in with 
 - `/agents` lists the agents; plugin agents appear as `ph1-pwa-kit:<name>`.
 
 A project can override any agent by adding its own file with the same name in `.claude/agents/`.
+
+**Memory:** each agent keeps a memory folder per project (commands that work, quirks, pitfalls; never credentials), read at the start of every run. With ph1-brain installed, the lead also reads and adds to `wiki/topics/agent-lessons.md` in the brain, so lessons from one project's build reach every project.

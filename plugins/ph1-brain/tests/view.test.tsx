@@ -86,7 +86,7 @@ test('the Library and the Knowledge map draw the wiki, with a switch between the
 
   // Shared for the Agent office pane.
   const shared = JSON.parse(fs.get(`${HOME}/.claude/ph1-brain/view.json`)?.text ?? '{}') as { pages?: unknown[] }
-  expect(shared.pages?.length).toBe(5)
+  expect(shared.pages?.length).toBe(6) // 5 wiki pages + the seeded agent-lessons page
 
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
   expect(await ui.find({ type: 'Button', text: 'Library' })).toBeDefined()
@@ -95,7 +95,7 @@ test('the Library and the Knowledge map draw the wiki, with a switch between the
   expect(lib).toContain('PROJECTS 2')
   expect(lib).toContain('2 open questions')
   expect(lib).toContain('filing 2 notes') // auto-ingest started the librarian on the raw/ files
-  expect((await ui.find({ type: 'Text', text: /pages/ }))?.text).toContain('5 pages')
+  expect((await ui.find({ type: 'Text', text: /pages/ }))?.text).toContain('6 pages')
 
   await ui.press({ key: 'map' })
   await clock.settle()

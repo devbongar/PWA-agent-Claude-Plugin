@@ -164,3 +164,20 @@ test('the CLAUDE.md section is removed when turned off', { options: { claude_md:
   expect(text).toContain('# My rules')
   expect(text).toContain('More.')
 })
+
+test('an existing agent lessons page is never overwritten', async ($, on) => {
+  const fs: Fs = new Map()
+  fs.set(`${ROOT}/wiki/topics/agent-lessons.md`, { text: '# Agent lessons\n\n- mine\n', mtimeMs: 1 })
+  engine(on, fs, [])
+  await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
+  expect(fs.get(`${ROOT}/wiki/topics/agent-lessons.md`)?.text).toBe('# Agent lessons\n\n- mine\n')
+})
+
+test('the seeded lessons page carries the copy rule', async ($, on) => {
+  const fs: Fs = new Map()
+  engine(on, fs, [])
+  await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
+  const text = fs.get(`${ROOT}/wiki/topics/agent-lessons.md`)?.text ?? ''
+  expect(text).toContain('A mutation harness works on a copy')
+  expect(text).toContain('`finally`')
+})
