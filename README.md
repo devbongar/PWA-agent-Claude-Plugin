@@ -21,6 +21,8 @@ Commands:
 
 **Ship gate:** once `/ph1-pwa-kit:new-feature` or `/ph1-pwa-kit:quick-change` runs in a session, commits, pushes, merges and PRs are blocked until `code-reviewer` has reviewed the feature and `qa-engineer` has tested the latest code changes. `/ph1-pwa-kit:ship-gate` shows the status; only you can run `/ph1-pwa-kit:ship-gate skip` (until the next code change) or `/ph1-pwa-kit:ship-gate off`.
 
+**Commit scan:** in every session, before Claude runs `git commit`, `git push` or `gh pr create/merge`, ph1-pwa-kit checks exactly what would be shipped and blocks it if it finds secrets (private keys, Stripe/AWS/GitHub/Google/OpenAI/Anthropic/Slack/SendGrid keys, Supabase service-role keys, database URLs with passwords, hard-coded passwords), files that must never be committed (`.env`, `.env.test.local`, `.pem`/`.key`, SSH keys, credential JSON) or junk (`node_modules`, build output, Playwright test results, logs, `.DS_Store`, files over 5 MB). Secrets are shown masked. Only you can let the next commit or push through, with `/ph1-pwa-kit:ship-gate allow-secret`. It only covers commits Claude makes: turn on GitHub secret scanning with push protection for commits made any other way.
+
 ### Bundled design skills
 
 | Skill | Used by | When |

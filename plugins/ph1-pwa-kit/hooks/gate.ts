@@ -4,9 +4,12 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { GateState } from '../types'
+import { scanShipCommand } from './scan'
 import { EMPTY, denyText, editCounts, inProject, isEditTool, isQa, isReviewer, isShipCommand, missing, statusText } from './gate-logic'
 
 let projectDir = ''
+// Set by the person with /ph1-pwa-kit:ship-gate allow-secret: lets the next commit or push skip the commit scan.
+let allowScanOnce = false
 
 const gateAtom = atom({ plugin: 'ph1-pwa-kit', key: 'gate' } as const, EMPTY, { shape: 'gate-1' })
 
@@ -54,6 +57,10 @@ async function personAsked($: EngineInterface, arg: string): Promise<boolean> {
 }
 
 async function gateCommand($: EngineInterface, arg: string): Promise<string> {
+  if (arg === 'allow-secret') {
+    allowScanOnce = true
+    return 'Commit scan: the next commit or push may go ahead without the secret and file scan (this once only).'
+  }
   if (arg === 'skip') {
     await set($, g => ({ ...g, skipUntilChange: true }))
     return 'Ship gate skipped until the next code change. You can commit, push or open a PR now.'
@@ -77,8 +84,8 @@ export const register: Register = on => {
     await $.tool.register({ name: 'ship_gate_status', description: 'Show the ph1-pwa-kit ship gate status: whether code review and QA have run for the latest code changes.', isDeferred: false })
     await $.tool.register({
       name: 'ship_gate_change',
-      description: "Change the ph1-pwa-kit ship gate. Only when the person's latest message asks for it (/ph1-pwa-kit:ship-gate skip|off|on); never on your own initiative.",
-      inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['skip', 'off', 'on'] } }, required: ['action'] },
+      description: "Change the ph1-pwa-kit ship gate. Only when the person's latest message asks for it (/ph1-pwa-kit:ship-gate skip|off|on|allow-secret); never on your own initiative.",
+      inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['skip', 'off', 'on', 'allow-secret'] } }, required: ['action'] },
       isDeferred: false,
     })
     $.ui.status(statusText(await read($, gateAtom)))
@@ -100,7 +107,7 @@ export const register: Register = on => {
   on('tool.call', { tool: STATUS_TOOL }, async $ => ({ result: await gateCommand($, 'status') }))
   on('tool.call', { tool: CHANGE_TOOL }, async ($, e) => {
     const arg = String((e as { action?: unknown }).action ?? '').trim().toLowerCase()
-    if (arg !== 'skip' && arg !== 'off' && arg !== 'on') return { result: 'Unknown action. Use skip, off or on.' }
+    if (arg !== 'skip' && arg !== 'off' && arg !== 'on' && arg !== 'allow-secret') return { result: 'Unknown action. Use skip, off, on or allow-secret.' }
     if (arg !== 'on' && !(await personAsked($, arg))) {
       return { result: `Refused: only the person can ${arg} the ship gate, by typing /ph1-pwa-kit:ship-gate ${arg} themselves.` }
     }
@@ -140,16 +147,23 @@ export const register: Register = on => {
     const tool = String(e.tool)
     if (tool === 'Skill' && isNewFeature(String((e as { skill?: unknown }).skill ?? ''))) await activate($, true)
     const s = await read($, gateAtom)
-    if (!s.active) return next(e)
 
     if (tool === 'Bash' || tool === 'PowerShell') {
       const command = String((e as { command?: unknown }).command ?? '')
       if (isShipCommand(command)) {
-        const why = denyText(missing(s))
+        // The review and QA gate, when it's on for this session.
+        const why = s.active ? denyText(missing(s)) : undefined
         if (why) return { deny: why }
+        // The commit scan: always, in every session and project.
+        if (allowScanOnce) allowScanOnce = false
+        else {
+          const found = await scanShipCommand($, command, projectDir)
+          if (found) return { deny: found }
+        }
       }
       return next(e)
     }
+    if (!s.active) return next(e)
 
     if (isEditTool(tool)) {
       const agentType = e.agentId ? s.agents[e.agentId]?.type : undefined

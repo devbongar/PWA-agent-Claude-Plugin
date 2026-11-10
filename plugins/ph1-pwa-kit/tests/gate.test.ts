@@ -181,3 +181,69 @@ test('typing /ph1-pwa-kit:new-feature turns the gate on', async ($, on) => {
   const blocked = await $.tool.call({ tool: 'Bash', command: 'git push' } as never)
   expect(String((blocked as { deny?: string }).deny)).toContain('Ship gate')
 })
+
+// A fake git repo for the commit scan: answers by the git subcommand.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fakeGit(on: any, staged: { names: string; diff: string }) {
+  on('process.run', (_: unknown, e: { argv: readonly string[] }) => {
+    const a = e.argv.slice(1).join(' ')
+    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (a.startsWith('rev-parse --show-toplevel')) return ok('/work/app\n')
+    if (a.startsWith('diff --cached --name-only')) return ok(staged.names)
+    if (a.startsWith('diff --cached -U0')) return ok(staged.diff)
+    if (a.startsWith('cat-file')) return ok('120\n'.repeat(staged.names.split('\n').filter(Boolean).length))
+    return ok('')
+  })
+}
+
+test('the commit scan blocks a staged .env file, in any session, until the person allows it once', async ($, on) => {
+  engine(on)
+  fakeGit(on, { names: '.env\nsrc/a.ts\n', diff: '' })
+  let messages: { role: 'user' | 'assistant'; text: string; toolUses: never[] }[] = []
+  on('session.messages', () => ({ value: messages }))
+  await $.session.start({ cwd: '/work/app', surface: 'vscode', isInteractive: true })
+
+  const blocked = await $.tool.call({ tool: 'Bash', command: 'git commit -m "x"' } as never)
+  const text = String((blocked as { deny?: string }).deny)
+  expect(text).toContain('Commit scan')
+  expect(text).toContain('.env')
+  expect(text).toContain('allow-secret')
+
+  // The model can't allow it by itself.
+  messages = [{ role: 'user', text: 'commit it', toolUses: [] }]
+  const byModel = await $.tool.call({ tool: 'mcp__ph1-pwa-kit__ship_gate_change', action: 'allow-secret' } as never)
+  expect(String((byModel as { result?: unknown }).result)).toContain('only the person')
+
+  // The person can, for the next commit only.
+  messages = [{ role: 'user', text: '/ph1-pwa-kit:ship-gate allow-secret', toolUses: [] }]
+  await $.tool.call({ tool: 'mcp__ph1-pwa-kit__ship_gate_change', action: 'allow-secret' } as never)
+  const once = await $.tool.call({ tool: 'Bash', command: 'git commit -m "x"' } as never)
+  expect((once as { deny?: string }).deny).toBeUndefined()
+  const again = await $.tool.call({ tool: 'Bash', command: 'git commit -m "x"' } as never)
+  expect(String((again as { deny?: string }).deny)).toContain('Commit scan')
+})
+
+test('the commit scan blocks a key in the staged changes and lets clean commits through', async ($, on) => {
+  engine(on)
+  const key = 'sk_' + 'live_' + 'a1B2c3D4e5F6g7H8i9J0kLmN'
+  let diff = `+++ b/src/pay.ts\n@@ -0,0 +1 @@\n+const stripe = "${key}"\n`
+  on('process.run', (_: unknown, e: { argv: readonly string[] }) => {
+    const a = e.argv.slice(1).join(' ')
+    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (a.startsWith('rev-parse --show-toplevel')) return ok('/work/app\n')
+    if (a.startsWith('diff --cached --name-only')) return ok('src/pay.ts\n')
+    if (a.startsWith('diff --cached -U0')) return ok(diff)
+    if (a.startsWith('cat-file')) return ok('300\n')
+    return ok('')
+  })
+  await $.session.start({ cwd: '/work/app', surface: 'vscode', isInteractive: true })
+
+  const blocked = String(((await $.tool.call({ tool: 'Bash', command: 'git commit -m pay' } as never)) as { deny?: string }).deny)
+  expect(blocked).toContain('src/pay.ts:1')
+  expect(blocked).toContain('Stripe live key')
+  expect(blocked).not.toContain(key) // never printed in full
+
+  diff = '+++ b/src/pay.ts\n@@ -0,0 +1 @@\n+const stripe = process.env.STRIPE_KEY\n'
+  const clean = await $.tool.call({ tool: 'Bash', command: 'git commit -m pay' } as never)
+  expect((clean as { deny?: string }).deny).toBeUndefined()
+})
