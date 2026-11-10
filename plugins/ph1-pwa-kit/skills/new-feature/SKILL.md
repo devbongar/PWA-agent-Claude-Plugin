@@ -55,7 +55,8 @@ The agents' default models are set for the full track. For **small or low-risk p
   - Never ask me to paste a password into the chat, and never print, log or commit the credentials. If I paste one anyway, put it in `.env.test.local` for me, add the file to `.gitignore`, and don't repeat it.
   - Never use a real customer or admin account. If I offer one, say it should be a dedicated test account.
   - **Settle the test-login strategy now, not mid-build.** If there's no test account, offer concrete ways to get one (for example, a seeded test user in the local or staging database, or a sign-up flow QA can use).
-- **Stop and wait for my OK on the plan (and my answer about the test account) before writing code.**
+- **PR checks** (once per project): look in `.github/workflows/` for a workflow that runs on pull requests and includes a secret scan (for example `pr-checks.yml`, or any workflow using gitleaks). Skip this if the project isn't a git repository with a GitHub remote, if such a workflow exists, or if the project's page in the brain says "PR checks: declined". If they're missing, add one line to the plan message: "This project has no PR checks yet (secret scan, lint, types, tests, build, audit on every pull request). Add them before building?"
+- **Stop and wait for my OK on the plan (and my answers about the test account and PR checks) before writing code.**
 
 **Live testing decision** (carry it through to step 3):
 
@@ -63,6 +64,8 @@ The agents' default models are set for the full track. For **small or low-risk p
 - **No test account, or no answer**: live browser testing is **off**. Tell ui-reviewer and qa-engineer not to use the Playwright browser tools or run end-to-end tests that need a login. Everything else still runs. List the skipped live checks as manual checks in the summary.
 
 ## 2. Build
+
+- **If I said yes to PR checks,** set them up first, before any developer starts: read `${CLAUDE_SKILL_DIR}/../setup-pr-checks/SKILL.md` and follow it, using the template at `${CLAUDE_SKILL_DIR}/../setup-pr-checks/pr-checks.yml`. Keep it short: report in one or two lines and carry on with the build. (Doing it now means review and QA cover it with the feature.) If I said no, add "PR checks: declined" to the project's page in the brain (if set up) so I'm not asked again.
 
 - Give each developer the approved plan, the acceptance criteria and the API contract.
 - **No agent reads files another agent is writing.** Separate file ownership isn't enough: an agent that reads half-edited files reports bugs that are already fixed. **Default to running them one after the other** (usually backend first, then frontend against the finished API). Parallel agents on coupled work produce seam bugs each author can't see. Run them in parallel only for truly independent work, where neither reads the other's files and the pieces don't touch. If the feature is frontend-only or backend-only, use just that one.

@@ -17,9 +17,12 @@ It is **not** quick if it touches the **database or migrations, auth, permission
 In 2 to 4 lines, tell me: what you'll change, which files, and 1 to 3 acceptance criteria. Then go ahead without waiting for my OK, unless something is unclear or there's a real design choice to make (then ask one short question).
 
 - Live testing: on if `.env.test.local` has `E2E_EMAIL` and `E2E_PASSWORD` (check they're set without printing them); otherwise off. Don't ask for a test account on this track.
+- **PR checks** (once per project): look in `.github/workflows/` for a workflow that runs on pull requests and includes a secret scan (for example `pr-checks.yml`, or any workflow using gitleaks). Skip this if the project isn't a git repository with a GitHub remote, if such a workflow exists, or if the project's page in the brain says "PR checks: declined". If they're missing, ask in the same message, as your one question: "This project has no PR checks yet. Add them first?" and wait for the answer.
 - If the second brain is set up: skim `wiki/topics/agent-lessons.md` for anything that applies (put it in the review and QA briefs), and check the project's wiki page if the change relates to a client or project decision.
 
 ## 2. Build it yourself
+
+- **If I said yes to PR checks,** set them up first: read `${CLAUDE_SKILL_DIR}/../setup-pr-checks/SKILL.md` and follow it, using the template at `${CLAUDE_SKILL_DIR}/../setup-pr-checks/pr-checks.yml`, then report in one line. If I said no, add "PR checks: declined" to the project's page in the brain (if set up) so I'm not asked again.
 
 - Make the change directly. Match the existing code and components.
 - For UI work, follow `ph1-pwa-kit:app-ui-craft`: name the rules that apply (by ID) before you edit, and answer its pre-delivery checklist before review. Keep the iPhone status-bar rules for screens.
