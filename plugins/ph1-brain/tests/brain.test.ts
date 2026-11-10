@@ -8,7 +8,7 @@ type Fs = Map<string, { text: string; mtimeMs: number }>
 
 // An in-memory file system and the rest of the engine beneath the plugin.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function engine(on: any, fs: Fs, spawned: { prompt: string; cwd?: string }[]) {
+function engine(on: any, fs: Fs, spawned: { prompt: string; cwd?: string }[], decision: 'ask' | 'allow' = 'ask') {
   const norm = (p: string) => p.replace(/\\/g, '/')
   on('env.get', (_: unknown, e: { name: string }) => ({ value: e.name === 'USERPROFILE' ? HOME : undefined }))
   mock.clock(on)
@@ -43,7 +43,7 @@ function engine(on: any, fs: Fs, spawned: { prompt: string; cwd?: string }[]) {
     return { model: 'sonnet', agentId: `lib${spawned.length}` }
   })
   on('tool.call', () => ({ result: {} }))
-  on('tool.check', () => ({ decision: 'ask' }))
+  on('tool.check', () => ({ decision }))
   on('turn.complete', (_: unknown, e: { text: string }) => ({ text: e.text }))
   on('classic.SubagentStop', () => ({}))
   on('prompt.compose', () => ({ sections: [{ id: 'base', text: 'base', scope: 'shared' }] }))
@@ -180,4 +180,33 @@ test('the seeded lessons page carries the copy rule', async ($, on) => {
   const text = fs.get(`${ROOT}/wiki/topics/agent-lessons.md`)?.text ?? ''
   expect(text).toContain('A mutation harness works on a copy')
   expect(text).toContain('`finally`')
+})
+
+test('after a PR is merged, Claude is reminded to record it in the brain; ordinary commands get nothing', async ($, on) => {
+  const fs: Fs = new Map()
+  engine(on, fs, [], 'allow') // the person allowed these commands
+  on('process.run', () => ({ value: { exitCode: 0, stdout: '/home/tester/Projects/Site Planner\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  await $.session.start({ cwd: '/home/tester/Projects/Site Planner', surface: 'vscode', isInteractive: true })
+
+  const merged = (await $.tool.call({ tool: 'Bash', command: 'gh pr merge 86 --squash' } as never)) as { context?: string[] }
+  const note = (merged.context ?? []).join(' ')
+  expect(note).toContain(`${ROOT}/wiki/projects/site-planner.md`)
+  expect(note).toContain('log.md')
+
+  const pushedMain = (await $.tool.call({ tool: 'Bash', command: 'git push origin main' } as never)) as { context?: string[] }
+  expect((pushedMain.context ?? []).join(' ')).toContain('ph1-brain')
+
+  for (const command of ['npm test', 'git push origin feature/gantt', 'git status']) {
+    const ran = (await $.tool.call({ tool: 'Bash', command } as never)) as { context?: string[] }
+    expect((ran.context ?? []).join(' ')).not.toContain('ph1-brain')
+  }
+})
+
+test('the CLAUDE.md section says to record shipped work and keeps memory and brain apart', async ($, on) => {
+  const fs: Fs = new Map()
+  engine(on, fs, [])
+  await $.session.start({ cwd: '/home/tester/Projects/app', surface: 'vscode', isInteractive: true })
+  const md = fs.get(`${HOME}/.claude/CLAUDE.md`)?.text ?? ''
+  expect(md).toContain('Record shipped work, with or without a workflow')
+  expect(md).toContain('Agent memory is not the brain')
 })

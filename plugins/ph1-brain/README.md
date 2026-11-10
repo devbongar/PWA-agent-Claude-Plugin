@@ -20,6 +20,7 @@ A company-wide second brain for Claude, in two folders:
 
 ## Commands
 
+- `/ph1-brain:catch-up [since]` - record shipped work the brain missed: lists merged PRs since the project's page was last updated and writes one short entry (reads PR text, not code)
 - `/ph1-brain:view` - open the Brain pane (Library and Knowledge map, with a switch)
 - `/ph1-brain:status` - where the brain is and what's waiting
 - `/ph1-brain:ingest` - process new raw files now
@@ -36,3 +37,7 @@ A company-wide second brain for Claude, in two folders:
 It refreshes every 30 seconds and after each ingest. The terminal shows a one-line summary instead.
 
 Works in VS Code and the Claude desktop app's Code tab. Browse the wiki in any Markdown viewer; Obsidian shows the links as a graph.
+
+## Shipped work is recorded without a workflow
+
+When Claude creates or merges a PR, or pushes or merges to the main branch, ph1-brain adds a one-line reminder to that command's result: add a short dated entry to the project's page and `wiki/log.md`. The CLAUDE.md section says the same, and that per-project agent memory (private to one computer) is not a substitute for the shared brain. Anything missed can be filled in with `/ph1-brain:catch-up`.

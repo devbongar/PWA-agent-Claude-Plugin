@@ -1,7 +1,7 @@
 // Second brain: keeps raw/ untouchable, lets every session use the wiki, and has a
 // background librarian agent turn new raw files into linked wiki pages.
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-code'
+import type { EngineInterface, PluginOptions, Register, Timer, ToolCallResult } from 'claude-code'
 
 import type { BrainSnapshot, SnapPage, ViewMode } from '../types'
 import { expandHome, ignored, isUnder, newFiles, norm, resolve, touchesRaw } from './paths'
@@ -43,6 +43,8 @@ function guidance(b: Brain): string {
     ``,
     `- When a request touches clients, projects, past decisions, requirements or lessons learned, read ${b.wiki}/index.md first, then the relevant pages, and say which pages you used.`,
     `- You may create and edit pages under ${b.wiki}/ (for example a project page after finishing a feature; add a line to ${b.wiki}/log.md).`,
+    `- **Record shipped work, with or without a workflow.** When you create or merge a PR, or push or merge to the main branch, add a short dated entry to the project's page (${b.wiki}/projects/<project>.md, create it if missing): what changed, the PR numbers, and any decision and why. Add one line to ${b.wiki}/log.md. Small direct requests count too: group them into one entry.`,
+    `- **Agent memory is not the brain.** Your per-project memory is private to this computer and holds how to work here (commands, quirks). What was built and why, decisions and client requests go to the brain, which the whole team shares.`,
     `- Never change anything in ${b.raw}/: no edits, moves, renames or deletes. It is blocked.`,
     `- Never ask the person to organize, sort or rename anything in the brain.`,
     `- Don't load the brain for unrelated tasks.`,
@@ -326,6 +328,42 @@ function startViewTicker($: EngineInterface): void {
   })
 }
 
+
+// After shipping (a PR created or merged, a push or merge to main), remind Claude to record it in the brain.
+const SHIPPED = /\bgh\s+pr\s+(?:create|merge)\b|\bgit\s+(?:-C\s+\S+\s+)?merge\b|\bgit\s+(?:-C\s+\S+\s+)?push\b[^&|;]*\b(?:main|master)\b/
+
+export function shippedReminder(command: string, wiki: string, project: string): string | undefined {
+  if (!SHIPPED.test(command)) return undefined
+  const page = `${wiki}/projects/${project}.md`
+  return (
+    `ph1-brain: work was just shipped. Add a short dated entry to ${page} (create it if missing): what changed, PR numbers, and any decision and why; ` +
+    `and one line to ${wiki}/log.md. If earlier shipped work is missing from that page, add it in the same entry (the person can also run /ph1-brain:catch-up). Keep it to a few lines; don't read code for it.`
+  )
+}
+
+// The project's name for its brain page: the folder name, lower-case, dashes for spaces.
+export function projectName(dir: string): string {
+  const base = dir.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() ?? 'project'
+  return base.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'project'
+}
+
+
+// Adds the shipping note to a command's result. Never throws: the command has already run,
+// and a failure here must not make the hook chain run it again.
+async function withShipNote($: EngineInterface, command: string, ran: ToolCallResult): Promise<ToolCallResult> {
+  try {
+    if (!brain || ran.deny !== undefined || ran.isError) return ran
+    if (!shippedReminder(command, '', '')) return ran
+    if (isUnder(resolve(cwd, cwd), brain.root)) return ran
+    const top = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { timeoutMs: 5000 }).catch(() => undefined)
+    const dir = top && top.exitCode === 0 ? top.stdout.trim() : cwd
+    const note = shippedReminder(command, brain.wiki, projectName(dir))
+    return note ? { ...ran, context: [...(ran.context ?? []), note] } : ran
+  } catch {
+    return ran
+  }
+}
+
 export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
@@ -486,6 +524,8 @@ export const register: Register = (on, options) => {
       if (touchesRaw(command, brain.raw, cwd)) {
         return { deny: 'ph1-brain: this command could change files in raw/, which is read-only. Rule 1: never touch raw/. Read raw files with the Read tool instead.' }
       }
+      // After shipping (a PR, or a push or merge to main), remind Claude to record it in the brain.
+      return withShipNote($, command, await next(e))
     }
     return next(e)
   }).catch(($, e, next) => next(e)) // tool.check still refuses raw/ edits if this guard ever fails
