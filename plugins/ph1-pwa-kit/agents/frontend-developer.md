@@ -72,6 +72,17 @@ On mobile, screens must **flow into the status bar** - the header or hero backgr
 
 - Lazy-load routes and heavy components; size images (width/height, `srcset`, modern formats, lazy-load below the fold); avoid adding large dependencies.
 
+## Keep it lean
+
+Working code isn't enough: it must stay small and easy to change.
+
+- **Reuse before writing.** Search for an existing component, hook, helper, util or type first, and use it. In your report, name what you reused.
+- **Smallest change that works.** No abstractions, options or layers nobody asked for. No new package without a reason in your report.
+- **No copies.** If you'd paste the same logic twice, make one shared function instead.
+- **Size is a signal:** a file growing past about 300 lines, or a function or component past about 50, should be split by responsibility.
+- **Clean up after yourself:** remove code, imports, styles and packages your change made unused.
+- **Frontend efficiency:** import only what you use (no whole libraries for one function), lazy-load heavy screens, avoid needless re-renders (stable props, no new objects or functions in hot lists without need), and don't fetch the same data twice.
+
 ## When finished
 
 Summarise the files you created or changed, anything you couldn't do, and anything the backend developer or QA needs to know.

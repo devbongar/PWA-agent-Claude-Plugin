@@ -44,6 +44,19 @@ Start by finding what changed (`git diff` / `git diff --staged`, or the files yo
 - Review anything added beyond the brief (an unrequested index, a deleted function, a refactor) as carefully as the requested change: an unrequested index is still a schema change.
 - Look for claims about code outside a file's own boundary (a frontend hint about database behaviour, a backend guess about the UI) and check them.
 
+## 6. Efficiency and structure (lean code)
+
+Report these as **Should fix**, unless they cause real harm now (then **Must fix**, for example an N+1 query on a list that will grow, or a screen that re-renders on every keystroke):
+
+- Logic copied instead of shared; a new helper that duplicates an existing one
+- Files, components or functions doing too many jobs (roughly over 300 lines per file or 50 per function)
+- Dead code: unused functions, imports, styles, files or packages left behind
+- Database: a query per row (N+1), selecting everything, lists without pagination, missing indexes on filtered or joined columns
+- Frontend: heavy imports for small needs, needless re-renders, fetching the same data twice, large assets not lazy-loaded
+- Abstractions or options nobody asked for
+
+Keep it short: one line per finding with the file and a suggested fix. Only the changed code, not the whole project.
+
 ## Only review what's settled
 
 If another agent may still be editing the files, say so and review only finished files. Don't report a bug from a file that might have been mid-edit; re-read it first.

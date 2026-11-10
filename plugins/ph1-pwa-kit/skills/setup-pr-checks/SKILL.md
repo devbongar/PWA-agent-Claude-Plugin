@@ -20,6 +20,7 @@ Set up GitHub Actions PR checks for this project, starting from the template nex
 - **Never put a real key, password or URL with credentials in the workflow.** For build variables use harmless placeholders, or `${{ secrets.NAME }}` and tell me which repository secrets to add (Settings > Secrets and variables > Actions).
 - Remove the `SETUP` comments once each point is resolved; keep the other comments.
 - Keep the secret scan job as it is.
+- **Lean-code steps** (knip, jscpd, bundle size, optional Lighthouse) are warnings only (`continue-on-error`): they never fail a PR; results appear on the run's summary page. Set the jscpd source folder, the build output folder, and the bundle budget: build locally once, measure today's gzipped JavaScript total, and set the budget about 10% above it. Turn on the Lighthouse step only for a static build (for example a Vite PWA's `dist`); leave it commented out otherwise. Don't add these tools to package.json; they run with `npx`.
 - Write the file with the Write tool (it contains `${{ }}` expressions and shell quoting), not a shell heredoc.
 
 ## 3. Check it

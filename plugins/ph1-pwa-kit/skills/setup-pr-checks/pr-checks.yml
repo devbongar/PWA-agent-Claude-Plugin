@@ -66,6 +66,41 @@ jobs:
         # env:
         #   VITE_SUPABASE_URL: https://example.supabase.co
 
+      # ---- Lean code: warnings only (never fail the PR). Results go to the run's summary page. ----
+      - name: Unused files, exports and packages (knip)
+        continue-on-error: true
+        run: |
+          echo "## Unused code (knip)" >> "$GITHUB_STEP_SUMMARY"
+          npx --yes knip@5 --no-exit-code --reporter markdown >> "$GITHUB_STEP_SUMMARY" || echo "knip could not run" >> "$GITHUB_STEP_SUMMARY"
+      - name: Copy-pasted code (jscpd)
+        continue-on-error: true
+        run: |
+          npx --yes jscpd@4 src --min-lines 10 --min-tokens 70 --silent --reporters markdown --output .jscpd \
+            --ignore "**/node_modules/**,**/dist/**,**/build/**,**/*.test.*,**/*.spec.*" || true
+          echo "## Copy-pasted code (jscpd)" >> "$GITHUB_STEP_SUMMARY"
+          cat .jscpd/jscpd-report.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "No duplication report." >> "$GITHUB_STEP_SUMMARY"
+        # SETUP: replace `src` with the project's source folder(s).
+      - name: Bundle size
+        continue-on-error: true
+        env:
+          OUT_DIR: dist # SETUP: the build output folder (dist, build, .next/static, out)
+          BUDGET_KB: 350 # SETUP: total gzipped JavaScript budget; start at today's size plus about 10%
+        run: |
+          if [ ! -d "$OUT_DIR" ]; then echo "No $OUT_DIR folder: skipped." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          echo "## Bundle size (gzipped JavaScript)" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | KB |" >> "$GITHUB_STEP_SUMMARY"; echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for f in $(find "$OUT_DIR" -name '*.js' -type f); do
+            echo "$(gzip -c "$f" | wc -c) $f"
+          done | sort -rn | head -10 | while read S F; do echo "| ${F#$OUT_DIR/} | $((S / 1024)) |" >> "$GITHUB_STEP_SUMMARY"; done
+          TOTAL=$(find "$OUT_DIR" -name '*.js' -type f -exec sh -c 'gzip -c "$1" | wc -c' _ {} \; | awk '{s+=$1} END {print int(s/1024)}')
+          echo "**Total: ${TOTAL} KB** (budget ${BUDGET_KB} KB)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TOTAL" -gt "$BUDGET_KB" ]; then echo "::warning title=Bundle size::JavaScript is ${TOTAL} KB gzipped, over the ${BUDGET_KB} KB budget"; fi
+      # SETUP (optional, static builds only - e.g. a Vite PWA with a dist folder): Lighthouse performance and PWA score.
+      # - name: Lighthouse
+      #   continue-on-error: true
+      #   run: npx --yes @lhci/cli@0.14.0 autorun --collect.staticDistDir=dist --upload.target=filesystem --upload.outputDir=.lighthouse
+      #   (keeps the report private to the run; never use temporary-public-storage for a private app)
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

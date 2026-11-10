@@ -247,3 +247,12 @@ test('the commit scan blocks a key in the staged changes and lets clean commits 
   const clean = await $.tool.call({ tool: 'Bash', command: 'git commit -m pay' } as never)
   expect((clean as { deny?: string }).deny).toBeUndefined()
 })
+
+test('typing /ph1-pwa-kit:tidy turns the gate on too', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.prompt.submit({ text: '/ph1-pwa-kit:tidy', origin: { kind: 'composer' }, command: { name: 'ph1-pwa-kit:tidy', args: '' } } as never)
+  await $.tool.call({ tool: 'Edit', file_path: '/a.ts', old_string: 'a', new_string: 'b' } as never)
+  const blocked = await $.tool.call({ tool: 'Bash', command: 'git commit -m tidy' } as never)
+  expect(String((blocked as { deny?: string }).deny)).toContain('Ship gate')
+})

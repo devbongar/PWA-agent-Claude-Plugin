@@ -39,8 +39,8 @@ async function finish($: EngineInterface, agentId: string): Promise<void> {
 
 const STATUS_TOOL = 'mcp__ph1-pwa-kit__ship_gate_status'
 const CHANGE_TOOL = 'mcp__ph1-pwa-kit__ship_gate_change'
-// Both workflows turn the gate on: the full track (/new-feature) and the quick track (/quick-change).
-const isNewFeature = (name: string) => /(^|:)(new-feature|quick-change)$/.test(name.replace(/^\//, ''))
+// The workflows turn the gate on: the full track (/new-feature), the quick track (/quick-change) and clean-ups (/tidy).
+const isNewFeature = (name: string) => /(^|:)(new-feature|quick-change|tidy)$/.test(name.replace(/^\//, ''))
 const isDeveloper = (type: string) => /(^|:)(frontend|backend)-developer$/.test(type)
 
 // Turn the gate on (fresh gates), unless it's already on for this feature.

@@ -44,6 +44,17 @@ The PWA queues changes made offline and sends them later, sometimes more than on
 - Write files containing regexes or backslashes with the Write or Edit tool, not shell heredocs.
 - If you think the plan is wrong (for example, delete vs reopen), push back with your reasons instead of building it anyway.
 
+## Keep it lean
+
+Working code isn't enough: it must stay small and easy to change.
+
+- **Reuse before writing.** Search for an existing component, hook, helper, util or type first, and use it. In your report, name what you reused.
+- **Smallest change that works.** No abstractions, options or layers nobody asked for. No new package without a reason in your report.
+- **No copies.** If you'd paste the same logic twice, make one shared function instead.
+- **Size is a signal:** a file growing past about 300 lines, or a function or component past about 50, should be split by responsibility.
+- **Clean up after yourself:** remove code, imports, styles and packages your change made unused.
+- **Backend efficiency:** one query instead of one per row (no N+1), select only the columns you need, paginate lists, index what you filter and join on, and do work in the database when it's cheaper there.
+
 ## When finished
 
 Summarise the endpoints and schema changes you made (with request/response examples), migrations to run, environment variables needed, and anything the frontend developer or QA needs to know.

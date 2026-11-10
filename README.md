@@ -18,7 +18,8 @@ Commands:
 
 - `/ph1-pwa-kit:new-feature <describe the feature>` - picks a track first. **Full track** (database, auth, permissions, payments, sync, bigger features): plan (waits for approval), build, then code review, UI review and QA together, one fix round, summary.
 - `/ph1-pwa-kit:quick-change <describe the change>` - **quick track** for small, low-risk changes (UI tweaks, copy, small fixes): short plan without waiting, the lead builds it, code review and QA together (lighter models), one fix round.
-- `/ph1-pwa-kit:setup-pr-checks` - adds GitHub Actions checks to a project's pull requests: secret scan (gitleaks), lint, type check, tests, build and dependency audit, adjusted to the project's scripts. You rarely need to run it yourself: `new-feature` and `quick-change` offer it once in any project that doesn't have PR checks yet.
+- `/ph1-pwa-kit:tidy [folder] [how many]` - cheap clean-up of existing code: free tools (knip, jscpd) find dead code, duplicates, big files and heavy bundles; Claude fixes the top few in small, behaviour-preserving batches after your OK, then quick review and QA.
+- `/ph1-pwa-kit:setup-pr-checks` - adds GitHub Actions checks to a project's pull requests: secret scan (gitleaks), lint, type check, tests, build, dependency audit and lean-code warnings (unused code, duplicates, bundle size), adjusted to the project's scripts. You rarely need to run it yourself: `new-feature` and `quick-change` offer it once in any project that doesn't have PR checks yet.
 
 **Ship gate:** once `/ph1-pwa-kit:new-feature` or `/ph1-pwa-kit:quick-change` runs in a session, commits, pushes, merges and PRs are blocked until `code-reviewer` has reviewed the feature and `qa-engineer` has tested the latest code changes. `/ph1-pwa-kit:ship-gate` shows the status; only you can run `/ph1-pwa-kit:ship-gate skip` (until the next code change) or `/ph1-pwa-kit:ship-gate off`.
 
